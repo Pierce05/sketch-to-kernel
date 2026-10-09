@@ -395,17 +395,26 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const canvas = canvasRef.current;
     if (!canvas) return "";
 
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const ctx = tempCanvas.getContext("2d");
-    if (!ctx) return canvas.toDataURL("image/png");
+    // Target crisp max resolution (max 960px) to prevent payload buffer overflow
+    const maxDim = 960;
+    const scale = Math.min(1, maxDim / Math.max(canvas.width, canvas.height, 1));
+    const targetW = Math.round(canvas.width * scale);
+    const targetH = Math.round(canvas.height * scale);
 
-    ctx.drawImage(canvas, 0, 0);
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = targetW;
+    tempCanvas.height = targetH;
+    const ctx = tempCanvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/jpeg", 0.9);
+
+    // Draw solid white paper backing
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(canvas, 0, 0, targetW, targetH);
 
     const dpr = window.devicePixelRatio || 1;
     ctx.save();
-    ctx.scale(dpr, dpr);
+    ctx.scale(dpr * scale, dpr * scale);
 
     stamps.forEach((stamp) => {
       ctx.strokeStyle = "#2724d1";
@@ -422,7 +431,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     });
 
     ctx.restore();
-    return tempCanvas.toDataURL("image/png");
+    return tempCanvas.toDataURL("image/jpeg", 0.9);
   };
 
   const handleCompileClick = () => {

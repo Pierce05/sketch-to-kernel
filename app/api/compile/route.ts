@@ -1,42 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { z } from "zod";
-import { CompileRequest, CompileResponse } from "@/lib/types";
-
-const PropSchema = z.object({
-  name: z.string(),
-  type: z.string(),
-  default: z.string(),
-  description: z.string(),
-});
-
-const CompileOutputSchema = z.object({
-  componentName: z.string(),
-  html: z.string(),
-  props: z.array(PropSchema),
-});
+import { CompileRequestSchema, CompileOutputSchema } from "@/lib/schemas";
+import { extractFencedJson } from "@/lib/json-extractor";
+import { sanitizeHtml } from "@/lib/sanitizer";
+import { CompileResponse } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const body: CompileRequest = await req.json();
+    const rawBody = await req.json();
 
-    if (!body.image) {
+    // 1. Validate request payload with Zod
+    const validationResult = CompileRequestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Image data is required" },
+        {
+          error: "Invalid request payload",
+          details: validationResult.error.flatten(),
+        },
         { status: 400 }
       );
     }
 
-    // Resolve API Key according to contract rules
+    const { image, apiKeyType, customApiKey } = validationResult.data;
+
+    // 2. Resolve API Key per Blueprint rules
     let apiKey: string | undefined;
-    if (body.apiKeyType === "custom" && body.customApiKey) {
-      apiKey = body.customApiKey;
-    } else if (body.apiKeyType === "default_1") {
-      apiKey = process.env.GEMINI_KEY_1;
-    } else if (body.apiKeyType === "default_2") {
-      apiKey = process.env.GEMINI_KEY_2;
-    } else if (body.customApiKey) {
-      apiKey = body.customApiKey;
+    if (apiKeyType === "custom" && customApiKey) {
+      apiKey = customApiKey.trim();
+    } else if (apiKeyType === "default_1") {
+      apiKey = process.env.GEMINI_KEY_1?.trim();
+    } else if (apiKeyType === "default_2") {
+      apiKey = process.env.GEMINI_KEY_2?.trim();
+    } else if (customApiKey) {
+      apiKey = customApiKey.trim();
     }
 
     if (!apiKey) {
@@ -49,14 +45,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extract base64 image data and mime type
-    const match = body.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    // 3. Extract and clean base64 image data
+    const match = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
     const mimeType = match ? match[1] : "image/png";
-    const base64Data = match ? match[2] : body.image;
+    const rawBase64 = match ? match[2] : image;
+    const base64Data = rawBase64.replace(/\s+/g, "");
 
-    // Initialize Google GenAI client
+    // 4. Initialize Google GenAI client
     const ai = new GoogleGenAI({ apiKey });
-    const modelName = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+
+    // Models sequence: Target Gemma 4 31B first, with Gemma 4 26B fallback
+    const primaryModel = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+    const fallbackModel = "gemma-4-26b-a4b-it";
 
     const promptText = `You are an expert Tailwind CSS frontend architect.
 Convert the provided hand-drawn UI wireframe or sketch into a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes.
@@ -70,52 +70,79 @@ DO NOT wrap the output in markdown code blocks (e.g. NO json or html). Output ON
   ]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: promptText },
-            {
-              inlineData: {
-                mimeType,
-                data: base64Data,
-              },
+    const makeContents = () => [
+      {
+        role: "user" as const,
+        parts: [
+          { text: promptText },
+          {
+            inlineData: {
+              mimeType,
+              data: base64Data,
             },
-          ],
-        },
-      ],
-    });
+          },
+        ],
+      },
+    ];
 
-    const responseText = response.text || "";
+    let responseText = "";
 
-    // Sanitize response: strip markdown backticks if returned
-    let cleanJson = responseText.trim();
-    if (cleanJson.startsWith("```json")) {
-      cleanJson = cleanJson.slice(7);
-    } else if (cleanJson.startsWith("```")) {
-      cleanJson = cleanJson.slice(3);
+    // 5. Model Execution with intelligent retry/fallback for 500 INTERNAL errors
+    try {
+      const response = await ai.models.generateContent({
+        model: primaryModel,
+        contents: makeContents(),
+      });
+      responseText = response.text || "";
+    } catch (primaryError: unknown) {
+      const errStr = primaryError instanceof Error ? primaryError.message : String(primaryError);
+      console.warn(`Primary model (${primaryModel}) encountered issue: ${errStr}. Attempting fallback to ${fallbackModel}...`);
+
+      if (fallbackModel !== primaryModel) {
+        try {
+          const fallbackResponse = await ai.models.generateContent({
+            model: fallbackModel,
+            contents: makeContents(),
+          });
+          responseText = fallbackResponse.text || "";
+        } catch (fallbackError: unknown) {
+          const fbErrStr = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          console.error(`Fallback model (${fallbackModel}) also failed: ${fbErrStr}`);
+          throw primaryError; // Re-throw to be handled gracefully
+        }
+      } else {
+        throw primaryError;
+      }
     }
-    if (cleanJson.endsWith("```")) {
-      cleanJson = cleanJson.slice(0, -3);
-    }
-    cleanJson = cleanJson.trim();
 
-    const parsed = JSON.parse(cleanJson);
-    const validated = CompileOutputSchema.parse(parsed);
+    if (!responseText) {
+      throw new Error("Received empty response from Gemma model");
+    }
+
+    // 6. Extract fenced JSON (handling ```json, ```, and stray text)
+    const rawParsed = extractFencedJson<unknown>(responseText);
+
+    // 7. Validate model output schema with Zod
+    const validatedOutput = CompileOutputSchema.parse(rawParsed);
+
+    // 8. Sanitize HTML output (strip scripts, event handlers, javascript: URLs)
+    const safeHtml = sanitizeHtml(validatedOutput.html);
 
     const result: CompileResponse = {
-      componentName: validated.componentName,
-      html: validated.html,
-      props: validated.props,
+      componentName: validatedOutput.componentName,
+      html: safeHtml,
+      props: validatedOutput.props,
     };
 
     return NextResponse.json(result, { status: 200 });
-  } catch (error: any) {
-    console.error("Compilation error:", error);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Internal compilation error";
+    console.error("Compilation error in /api/compile:", error);
+
     return NextResponse.json(
-      { error: error?.message || "Failed to compile wireframe" },
+      {
+        error: errorMsg,
+      },
       { status: 500 }
     );
   }
