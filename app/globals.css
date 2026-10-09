@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-base: #090a0f;
+    --bg-panel: #11131b;
+    --bg-surface: #171a26;
+    --border-subtle: #232738;
+    --border-accent: #3b4259;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --accent-glow: #6366f1;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b3044;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f4664;
+}
+
+/* Dot grid background pattern */
+.bg-grid-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-dot-matrix {
+  background-image: radial-gradient(rgba(99, 102, 241, 0.15) 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+}
+
+/* Smooth drawing canvas touch-action */
+.touch-none-canvas {
+  touch-action: none;
+}
