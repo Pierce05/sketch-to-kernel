@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ApiKeyMode } from "@/lib/types";
 import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
@@ -12,9 +11,9 @@ import {
   Check,
   Eye,
   EyeOff,
-  SlidersHorizontal,
   Layers,
   ArrowLeft,
+  X,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -34,6 +33,7 @@ export function Navbar({
   const { navigateWithBlob } = useInkBlobRouter();
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [tempKey, setTempKey] = useState(customApiKey);
+  const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -42,20 +42,36 @@ export function Navbar({
   }, [customApiKey]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
-    onApiKeyModeChange(mode);
-    if (mode === "custom" && !customApiKey) {
+    if (mode === "custom") {
+      setPreviousMode(apiKeyMode);
+      onApiKeyModeChange("custom");
       setShowKeyModal(true);
+    } else {
+      onApiKeyModeChange(mode);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowKeyModal(false);
+    // If closing without a saved custom key, revert to previous key mode
+    if (!customApiKey) {
+      onApiKeyModeChange(previousMode === "custom" ? "default_1" : previousMode);
     }
   };
 
   const handleSaveCustomKey = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    onCustomApiKeyChange(tempKey.trim());
-    setIsSaved(true);
-    setTimeout(() => {
-      setIsSaved(false);
-      setShowKeyModal(false);
-    }, 600);
+    const trimmed = tempKey.trim();
+    if (trimmed) {
+      onCustomApiKeyChange(trimmed);
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+        setShowKeyModal(false);
+      }, 500);
+    } else {
+      handleCloseModal();
+    }
   };
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
@@ -65,15 +81,15 @@ export function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[#232738]/80 bg-[#090a0f]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b-2 border-[#2b3044] bg-[#0c0e15]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3">
           {pathname === "/playground" && (
             <button
               onClick={(e) => handleNavClick(e, "/")}
-              className="group flex size-8 items-center justify-center rounded-lg border border-[#2b3044] bg-[#11131b] text-gray-400 transition-colors hover:border-indigo-500/50 hover:text-white"
-              title="Return to Landing Page"
+              className="group flex size-9 items-center justify-center rounded-xl border-2 border-[#2b3044] bg-[#131520] text-gray-300 transition-colors hover:border-indigo-500 hover:text-white"
+              title="Return to Sketchbook Home"
               aria-label="Back to home"
             >
               <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
@@ -85,13 +101,13 @@ export function Navbar({
             onClick={(e) => handleNavClick(e, "/")}
             className="flex items-center gap-2.5 font-semibold text-white transition-opacity hover:opacity-90"
           >
-            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20">
-              <Layers className="size-5 text-white" />
+            <div className="flex size-9 items-center justify-center rounded-xl border-2 border-indigo-400 bg-indigo-950/80 shadow-md shadow-indigo-500/20">
+              <Layers className="size-5 text-indigo-300" />
             </div>
             <div className="flex flex-col">
-              <span className="flex items-center gap-1.5 text-base font-bold tracking-tight">
+              <span className="flex items-center gap-1.5 text-base font-bold font-mono tracking-tight">
                 Sketch<span className="text-indigo-400">ToKernel</span>
-                <span className="hidden rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-inset ring-indigo-500/30 sm:inline-block">
+                <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-indigo-300 border border-indigo-500/40">
                   Gemma 4
                 </span>
               </span>
@@ -102,11 +118,11 @@ export function Navbar({
         {/* Right Section: API Key Selector & GitHub */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* API Key Mode Selector */}
-          <div className="flex items-center rounded-xl border border-[#2b3044] bg-[#11131b]/90 p-1 shadow-inner">
+          <div className="flex items-center rounded-xl border-2 border-[#2b3044] bg-[#131520] p-1 shadow-inner">
             <button
               type="button"
               onClick={() => handleModeSelect("default_1")}
-              className={`rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium transition-all ${
+              className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "default_1"
                   ? "bg-indigo-600 text-white shadow"
                   : "text-gray-400 hover:text-gray-200"
@@ -119,7 +135,7 @@ export function Navbar({
             <button
               type="button"
               onClick={() => handleModeSelect("default_2")}
-              className={`rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium transition-all ${
+              className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "default_2"
                   ? "bg-indigo-600 text-white shadow"
                   : "text-gray-400 hover:text-gray-200"
@@ -131,11 +147,8 @@ export function Navbar({
 
             <button
               type="button"
-              onClick={() => {
-                handleModeSelect("custom");
-                setShowKeyModal(true);
-              }}
-              className={`flex items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-medium transition-all ${
+              onClick={() => handleModeSelect("custom")}
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "custom"
                   ? "bg-purple-600 text-white shadow"
                   : "text-gray-400 hover:text-gray-200"
@@ -153,7 +166,7 @@ export function Navbar({
             href="https://github.com/Pierce05/sketch-to-kernel"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-xl border border-[#2b3044] bg-[#11131b] px-2.5 sm:px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:border-[#3f4664] hover:text-white"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-[#2b3044] bg-[#131520] px-3 py-1.5 text-xs font-mono font-bold text-gray-300 transition-colors hover:border-indigo-500 hover:text-white"
             aria-label="View on GitHub"
           >
             <svg className="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
@@ -164,31 +177,32 @@ export function Navbar({
         </div>
       </div>
 
-      {/* Custom Key Modal / Dialog */}
+      {/* Custom Key Modal: Reverts cleanly on cancel */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-[#2b3044] bg-[#11131b] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border-2 border-[#2b3044] bg-[#0c0e15] p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#232738] pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/40">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-purple-950/80 text-purple-400 border border-purple-800/40">
                   <KeyRound className="size-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Custom Gemini API Key</h3>
+                  <h3 className="text-sm font-bold font-mono text-white">Custom Gemini API Key</h3>
                   <p className="text-xs text-gray-400">Used for Gemma 4 31B compilation requests</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowKeyModal(false)}
-                className="text-gray-400 hover:text-white text-sm"
+                onClick={handleCloseModal}
+                className="flex size-7 items-center justify-center rounded-lg border border-[#2b3044] text-gray-400 hover:text-white"
+                title="Cancel and restore previous key"
               >
-                ✕
+                <X className="size-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveCustomKey} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                <label className="block text-xs font-mono font-medium text-gray-300 mb-1.5">
                   Enter Gemini API Key
                 </label>
                 <div className="relative">
@@ -198,7 +212,7 @@ export function Navbar({
                     onChange={(e) => setTempKey(e.target.value)}
                     placeholder="AIzaSy..."
                     autoFocus
-                    className="w-full rounded-xl border border-[#2b3044] bg-[#090a0f] px-3.5 py-2.5 pr-10 text-xs font-mono text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="w-full rounded-xl border-2 border-[#2b3044] bg-[#131520] px-3.5 py-2.5 pr-10 text-xs font-mono text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -208,29 +222,26 @@ export function Navbar({
                     {showKeySecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-gray-400">
-                  Stored securely in your browser&apos;s <code className="font-mono text-indigo-300">localStorage</code>. Never logged on server.
+                <p className="mt-1.5 text-[11px] text-gray-400 font-mono">
+                  Stored in browser <code className="text-indigo-300">localStorage</code>. Never sent to any 3rd party.
                 </p>
               </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setTempKey("");
-                    onCustomApiKeyChange("");
-                  }}
-                  className="rounded-xl px-3 py-1.5 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                  onClick={handleCloseModal}
+                  className="rounded-xl border border-[#2b3044] bg-[#131520] px-3.5 py-2 text-xs font-mono text-gray-400 hover:text-white transition-colors"
                 >
-                  Clear Key
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/30"
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-mono font-bold text-white hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/30"
                 >
                   {isSaved ? (
                     <>
-                      <Check className="size-3.5" /> Saved
+                      <Check className="size-3.5 text-emerald-300" /> Saved
                     </>
                   ) : (
                     "Save & Use Key"
