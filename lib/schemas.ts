@@ -6,12 +6,13 @@ export const CustomProviderSchema = z.enum(["gemini", "nvidia"]);
 export const CompileRequestSchema = z.object({
   image: z
     .string({ required_error: "image data URL is required" })
-    .min(10, "image data URL must not be empty"),
+    .min(10, "image data URL must not be empty")
+    .max(7_000_000, "image is too large; use a smaller sketch"),
   apiKeyType: ApiKeyModeSchema,
   customProvider: CustomProviderSchema.optional().default("gemini"),
-  customApiKey: z.string().optional(),
-  customModelId: z.string().optional(),
-  wireframeDescription: z.string().optional(),
+  customApiKey: z.string().max(512).optional(),
+  customModelId: z.string().max(200).optional(),
+  wireframeDescription: z.string().max(50000).optional(),
 });
 
 export const ComponentPropSchema = z.object({
