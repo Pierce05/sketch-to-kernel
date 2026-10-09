@@ -505,6 +505,140 @@ export function SketchUnderline({
 }
 
 /* =========================================================================
+   SKETCH OPTION BUTTON (Drawably Tactile Option / Tab / Tool Button)
+   ========================================================================= */
+
+export interface SketchOptionButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+  activeFill?: string;
+  activeStroke?: string;
+  resketchOnHover?: boolean;
+}
+
+export const SketchOptionButton = forwardRef<HTMLButtonElement, SketchOptionButtonProps>(
+  (
+    {
+      children,
+      className = "",
+      active = false,
+      activeFill = "#2724d1",
+      activeStroke = "#2724d1",
+      resketchOnHover = true,
+      onMouseEnter,
+      ...props
+    },
+    forwardedRef
+  ) => {
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+    const svgRef = useRef<SVGSVGElement | null>(null);
+    const { seed, resketch } = useResketch();
+
+    const draw = useCallback(() => {
+      const el = btnRef.current;
+      const svg = svgRef.current;
+      if (!el || !svg) return;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+      svg.innerHTML = "";
+
+      const rc = rough.svg(svg);
+
+      if (active) {
+        const shadow = rc.rectangle(
+          2,
+          2,
+          Math.max(4, rect.width - 3),
+          Math.max(4, rect.height - 3),
+          {
+            seed: seed + 1,
+            roughness: 1.2,
+            stroke: "rgba(24, 24, 27, 0.15)",
+            strokeWidth: 1.5,
+            fill: "rgba(24, 24, 27, 0.05)",
+            fillStyle: "solid",
+          }
+        );
+        svg.appendChild(shadow);
+
+        const node = rc.rectangle(
+          1,
+          1,
+          Math.max(4, rect.width - 2),
+          Math.max(4, rect.height - 2),
+          {
+            seed,
+            roughness: 1.4,
+            stroke: activeStroke,
+            strokeWidth: 2,
+            fill: activeFill,
+            fillStyle: "solid",
+          }
+        );
+        svg.appendChild(node);
+      } else {
+        const node = rc.rectangle(
+          1,
+          1,
+          Math.max(4, rect.width - 2),
+          Math.max(4, rect.height - 2),
+          {
+            seed,
+            roughness: 1.2,
+            stroke: "rgba(24, 24, 27, 0.25)",
+            strokeWidth: 1.2,
+            fill: "transparent",
+            fillStyle: "solid",
+          }
+        );
+        svg.appendChild(node);
+      }
+    }, [seed, active, activeFill, activeStroke]);
+
+    useEffect(() => {
+      draw();
+      const el = btnRef.current;
+      if (!el || typeof ResizeObserver === "undefined") return;
+
+      const observer = new ResizeObserver(() => draw());
+      observer.observe(el);
+      return () => observer.disconnect();
+    }, [draw]);
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (resketchOnHover) resketch();
+      onMouseEnter?.(e);
+    };
+
+    return (
+      <button
+        ref={(node) => {
+          btnRef.current = node;
+          if (typeof forwardedRef === "function") forwardedRef(node);
+          else if (forwardedRef) forwardedRef.current = node;
+        }}
+        onMouseEnter={handleMouseEnter}
+        className={`relative isolate inline-flex items-center justify-center gap-1.5 px-3 py-1.5 font-mono text-xs cursor-pointer select-none transition-all duration-100 hover:scale-[1.02] active:scale-[0.98] ${
+          active ? "text-white font-bold" : "text-[#52525b] hover:text-[#18181b] font-medium"
+        } ${className}`}
+        {...props}
+      >
+        <svg
+          ref={svgRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 size-full overflow-visible -z-10"
+        />
+        {children}
+      </button>
+    );
+  }
+);
+SketchOptionButton.displayName = "SketchOptionButton";
+
+/* =========================================================================
    WIRED ELEMENTS REACT COMPONENT WRAPPERS
    ========================================================================= */
 
@@ -512,7 +646,7 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       "wired-button": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & { elevation?: number },
+        React.HTMLAttributes<HTMLElement> & { elevation?: number; disabled?: string | boolean },
         HTMLElement
       >;
       "wired-card": React.DetailedHTMLProps<
@@ -552,5 +686,23 @@ export function WiredCardWrapper({
         {children}
       </wired-card>
     </div>
+  );
+}
+
+export function WiredButtonWrapper({
+  children,
+  elevation = 1,
+  className = "",
+  onClick,
+}: {
+  children: React.ReactNode;
+  elevation?: number;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <wired-button elevation={elevation} className={className} onClick={onClick}>
+      {children}
+    </wired-button>
   );
 }

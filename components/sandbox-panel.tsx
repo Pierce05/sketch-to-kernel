@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { CompileResponse } from "@/lib/types";
 import { PropsTable } from "@/components/props-table";
 import { CodeViewer } from "@/components/code-viewer";
-import { SketchButton, SketchBadge } from "@/components/sketch-ui";
+import { SketchButton, SketchBadge, SketchOptionButton } from "@/components/sketch-ui";
 import confetti from "canvas-confetti";
 import {
   Eye,
@@ -147,30 +147,24 @@ export function SandboxPanel({
       <div className="flex flex-wrap items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2.5 text-xs">
         {/* Left: Tabs ([Live Preview] vs [Code]) */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="flex items-center rounded-xl border border-[#18181b] bg-white p-0.5">
-            <button
+          <div className="flex items-center gap-1">
+            <SketchOptionButton
+              active={activeTab === "preview"}
               onClick={() => setActiveTab("preview")}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono font-bold transition-colors ${
-                activeTab === "preview"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2.5 py-1 text-xs"
             >
               <Eye className="size-3.5" />
               <span>Live Preview</span>
-            </button>
+            </SketchOptionButton>
 
-            <button
+            <SketchOptionButton
+              active={activeTab === "code"}
               onClick={() => setActiveTab("code")}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-mono font-bold transition-colors ${
-                activeTab === "code"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2.5 py-1 text-xs"
             >
               <Code2 className="size-3.5" />
               <span>Code</span>
-            </button>
+            </SketchOptionButton>
           </div>
 
           {/* Component Name Badge */}
@@ -193,29 +187,23 @@ export function SandboxPanel({
         <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0">
           {/* Viewport switch (only active on preview tab) */}
           {activeTab === "preview" && (
-            <div className="flex items-center rounded-xl border border-[#18181b] bg-white p-0.5 text-[#52525b]">
-              <button
+            <div className="flex items-center gap-1">
+              <SketchOptionButton
+                active={viewportMode === "desktop"}
                 onClick={() => setViewportMode("desktop")}
-                className={`rounded-lg p-1 transition-colors ${
-                  viewportMode === "desktop"
-                    ? "bg-[#2724d1] text-white"
-                    : "hover:text-[#18181b]"
-                }`}
                 title="Desktop viewport (100%)"
+                className="p-1 px-1.5"
               >
                 <Monitor className="size-3.5" />
-              </button>
-              <button
+              </SketchOptionButton>
+              <SketchOptionButton
+                active={viewportMode === "mobile"}
                 onClick={() => setViewportMode("mobile")}
-                className={`rounded-lg p-1 transition-colors ${
-                  viewportMode === "mobile"
-                    ? "bg-[#2724d1] text-white"
-                    : "hover:text-[#18181b]"
-                }`}
                 title="Mobile viewport (375px)"
+                className="p-1 px-1.5"
               >
                 <Smartphone className="size-3.5" />
-              </button>
+              </SketchOptionButton>
             </div>
           )}
 

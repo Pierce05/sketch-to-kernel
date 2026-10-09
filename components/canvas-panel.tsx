@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
-import { SketchButton } from "@/components/sketch-ui";
+import { SketchButton, SketchBadge, SketchOptionButton } from "@/components/sketch-ui";
 import {
   PenTool,
   Eraser,
@@ -739,108 +739,91 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border-2 border-[#18181b] bg-white shadow-xl">
       {/* Top Toolbox: Generously spaced tool groups */}
       <div className="flex flex-wrap items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2.5 text-xs gap-2 sm:gap-3">
-        {/* Tool Group 1: Modes (Pen, Rect, Circle, Eraser, Text) */}
+          {/* Tool Group 1: Modes (Pen, Rect, Circle, Eraser, Text) */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold hidden sm:inline mr-1">
             Tools:
           </span>
-          <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-1">
-            <button
+          <div className="flex items-center gap-1">
+            <SketchOptionButton
+              active={activeTool === "pen"}
               onClick={() => setActiveTool("pen")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
-                activeTool === "pen"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2 sm:px-2.5 py-1"
               title="Freehand pen"
             >
               <PenTool className="size-3.5" />
               <span className="hidden md:inline">Pen</span>
-            </button>
+            </SketchOptionButton>
 
             {/* Shape: Rectangle */}
-            <button
+            <SketchOptionButton
+              active={activeTool === "rectangle"}
               onClick={() => setActiveTool("rectangle")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
-                activeTool === "rectangle"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2 sm:px-2.5 py-1"
               title="Rectangle / Square shape tool"
             >
               <Square className="size-3.5" />
               <span className="hidden md:inline">Rect</span>
-            </button>
+            </SketchOptionButton>
 
             {/* Shape: Circle */}
-            <button
+            <SketchOptionButton
+              active={activeTool === "circle"}
               onClick={() => setActiveTool("circle")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
-                activeTool === "circle"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2 sm:px-2.5 py-1"
               title="Circle / Ellipse shape tool"
             >
               <Circle className="size-3.5" />
               <span className="hidden md:inline">Circle</span>
-            </button>
+            </SketchOptionButton>
 
             {/* Text Tool */}
-            <button
+            <SketchOptionButton
+              active={activeTool === "text"}
               onClick={() => setActiveTool("text")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
-                activeTool === "text"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2 sm:px-2.5 py-1"
               title="Add Scalable Draggable Text"
             >
               <Type className="size-3.5" />
               <span className="hidden md:inline">Text</span>
-            </button>
+            </SketchOptionButton>
 
             {/* Eraser */}
-            <button
+            <SketchOptionButton
+              active={activeTool === "eraser"}
               onClick={() => setActiveTool("eraser")}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
-                activeTool === "eraser"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b]"
-              }`}
+              className="px-2 sm:px-2.5 py-1"
               title="Eraser tool"
             >
               <Eraser className="size-3.5" />
               <span className="hidden md:inline">Eraser</span>
-            </button>
+            </SketchOptionButton>
           </div>
 
           {/* Eraser Sub-modes: Brush vs Eradicator */}
           {activeTool === "eraser" && (
-            <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-0.5 animate-in fade-in duration-150">
-              <button
+            <div className="flex items-center gap-1 animate-in fade-in duration-150">
+              <SketchOptionButton
+                active={eraserMode === "brush"}
+                activeFill="#18181b"
+                activeStroke="#18181b"
                 onClick={() => setEraserMode("brush")}
-                className={`rounded-lg px-2 py-1 text-[11px] font-mono font-bold transition-colors ${
-                  eraserMode === "brush"
-                    ? "bg-[#18181b] text-white"
-                    : "text-[#52525b] hover:text-[#18181b]"
-                }`}
+                className="px-2 py-0.5 text-[11px]"
                 title="Brush eraser: clears area under cursor"
               >
                 Brush
-              </button>
-              <button
+              </SketchOptionButton>
+              <SketchOptionButton
+                active={eraserMode === "eradicator"}
+                activeFill="#d12724"
+                activeStroke="#d12724"
                 onClick={() => setEraserMode("eradicator")}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-mono font-bold transition-colors ${
-                  eraserMode === "eradicator"
-                    ? "bg-[#d12724] text-white"
-                    : "text-[#d12724] hover:bg-red-50"
-                }`}
+                className="px-2 py-0.5 text-[11px]"
                 title="Eradicator: touch to delete the entire stroke"
               >
                 <Scissors className="size-3" />
                 <span>Eradicator</span>
-              </button>
+              </SketchOptionButton>
             </div>
           )}
         </div>
@@ -875,20 +858,17 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold">
               Size:
             </span>
-            <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-1">
+            <div className="flex items-center gap-1">
               {STROKE_SIZES.map((sz) => (
-                <button
+                <SketchOptionButton
                   key={sz.size}
+                  active={strokeWidth === sz.size}
                   onClick={() => setStrokeWidth(sz.size)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-mono transition-colors ${
-                    strokeWidth === sz.size
-                      ? "bg-[#2724d1] text-white font-bold"
-                      : "text-[#52525b] hover:text-[#18181b]"
-                  }`}
+                  className="px-2 py-0.5 text-xs"
                   title={`${sz.label} stroke width`}
                 >
                   {sz.size}px
-                </button>
+                </SketchOptionButton>
               ))}
             </div>
           </div>

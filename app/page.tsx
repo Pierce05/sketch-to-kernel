@@ -187,7 +187,7 @@ export default function LandingPage() {
                       {/* Hand-drawn representation */}
                       <div className="w-full max-w-xs space-y-3 p-4 border-2 border-dashed border-[#2724d1] rounded-xl font-mono text-xs text-[#2724d1]">
                         <div className="flex justify-between items-center border-b-2 border-[#2724d1] pb-2 font-bold">
-                          <span>[ SketchToKernel ]</span>
+                          <span>[ Sketch2UI ]</span>
                           <span className="text-[10px]">[ ★ 142 ]</span>
                         </div>
                         <div className="text-[11px] text-[#18181b] leading-tight">
@@ -223,7 +223,7 @@ export default function LandingPage() {
                               Hacktoberfest 2026
                             </span>
                             <h4 className="text-sm font-bold text-[#18181b] mt-0.5">
-                              SketchToKernel
+                              Sketch2UI
                             </h4>
                           </div>
                           <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-mono text-[#188a42] font-bold border border-emerald-300">
@@ -244,12 +244,13 @@ export default function LandingPage() {
                             Gemma 4
                           </span>
                         </div>
-                        <button
+                        <SketchButton
+                          variant="primary"
                           onClick={handleLaunchPlayground}
-                          className="mt-4 w-full rounded-xl bg-[#2724d1] py-2 text-xs font-bold text-white shadow-md hover:bg-blue-800 transition-colors"
+                          className="mt-4 w-full text-xs font-bold py-2 shadow-md"
                         >
                           Try In Playground →
-                        </button>
+                        </SketchButton>
                       </div>
                     </div>
                   </div>
@@ -365,7 +366,7 @@ export default function LandingPage() {
       <footer className="border-t-2 border-[#18181b] bg-[#eceae1] py-8 text-xs text-[#52525b]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#18181b]">SketchToKernel</span>
+            <span className="font-bold text-[#18181b]">Sketch2UI</span>
             <span>•</span>
             <span>Hacktoberfest 2026 Open Source Project</span>
           </div>
