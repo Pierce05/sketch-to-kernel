@@ -3,6 +3,7 @@ import { extractCompilePayload, ExtractedComponentPayload } from "@/lib/json-ext
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileOutputSchema } from "@/lib/schemas";
 import { CompileResponse } from "@/lib/types";
+import { readSseStream } from "@/lib/sse";
 
 export interface NvidiaCompileOptions {
   apiKey: string;
@@ -37,6 +38,21 @@ export async function compileWithNvidiaNim({
   } else {
     cleanModel = cleanModel.replace(/glm-5-3/gi, "glm-5.3");
   }
+
+
+     const isVisionModel =
+     cleanModel.toLowerCase().includes("vision") ||
+     cleanModel.toLowerCase().includes("neva");
+
+   // Text-only models never receive the image. Without the canvas wireframe
+   // description there is nothing to build from, so fail early with a clear message.
+   if (!isVisionModel && !wireframeDescription?.trim()) {
+     return {
+       success: false,
+       error: `${cleanModel} cannot read images. Draw your sketch on the canvas (Key 2 uses the canvas structure), or switch to Key 1 (Gemma reads images).`,
+       status: 400,
+     };
+   }
 
   // 1. Strict 39 RPM rate limit check BEFORE sending any request to NVIDIA
   const rateLimitStatus = checkNvidiaRateLimit(cleanKey);
@@ -75,9 +91,7 @@ STRICT REQUIREMENTS:
 }`;
 
   try {
-    const isVisionModel =
-      cleanModel.toLowerCase().includes("vision") ||
-      cleanModel.toLowerCase().includes("neva");
+
 
     const messages = isVisionModel
       ? [
@@ -113,7 +127,7 @@ STRICT REQUIREMENTS:
       model: cleanModel,
       messages,
       temperature: 0.1,
-      max_tokens: 4096,
+      max_tokens: 8192 ,
       reasoning_effort: "low", // Thinking disabled across all NVIDIA NIM models
       stream: true,
     };
@@ -125,6 +139,7 @@ STRICT REQUIREMENTS:
         Authorization: `Bearer ${cleanKey}`,
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(55_000),
     });
 
     if (!res.ok) {
@@ -144,32 +159,9 @@ STRICT REQUIREMENTS:
       };
     }
 
-    let accumulatedContent = "";
-    let accumulatedReasoning = "";
-
-    if (res.body) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6).trim();
-            if (dataStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              const delta = parsed.choices?.[0]?.delta;
-              if (delta?.content) accumulatedContent += delta.content;
-              if (delta?.reasoning_content) accumulatedReasoning += delta.reasoning_content;
-            } catch {}
-          }
-        }
-      }
-    }
+     const { content: accumulatedContent, reasoning: accumulatedReasoning } = res.body
+      ? await readSseStream(res.body)
+      : { content: "", reasoning: "" };
 
     let payloadResult: ExtractedComponentPayload | null = null;
     let extractionError: string | null = null;
