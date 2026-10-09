@@ -28,8 +28,15 @@ export async function compileWithNvidiaNim({
   wireframeDescription,
 }: NvidiaCompileOptions): Promise<NvidiaCompileResult> {
   const cleanKey = apiKey.trim();
-  // Automatically normalize glm-5-3 to official NVIDIA NIM model ID z-ai/glm-5.3
-  const cleanModel = (modelId.trim() || "z-ai/glm-5.3").replace(/glm-5-3/gi, "glm-5.3");
+  // Normalize model IDs (e.g. gpt-oss-20b -> openai/gpt-oss-20b, glm-5-3 -> z-ai/glm-5.3)
+  let cleanModel = modelId.trim() || "z-ai/glm-5.3";
+  if (cleanModel.toLowerCase() === "glm-5.3" || cleanModel.toLowerCase() === "glm-5-3") {
+    cleanModel = "z-ai/glm-5.3";
+  } else if (cleanModel.toLowerCase() === "gpt-oss-20b") {
+    cleanModel = "openai/gpt-oss-20b";
+  } else {
+    cleanModel = cleanModel.replace(/glm-5-3/gi, "glm-5.3");
+  }
 
   // 1. Strict 39 RPM rate limit check BEFORE sending any request to NVIDIA
   const rateLimitStatus = checkNvidiaRateLimit(cleanKey);
@@ -72,12 +79,6 @@ STRICT REQUIREMENTS:
       cleanModel.toLowerCase().includes("vision") ||
       cleanModel.toLowerCase().includes("neva");
 
-    const isReasoningModel =
-      cleanModel.toLowerCase().includes("glm") ||
-      cleanModel.toLowerCase().includes("r1") ||
-      cleanModel.toLowerCase().includes("reason") ||
-      cleanModel.toLowerCase().includes("think");
-
     const messages = isVisionModel
       ? [
           {
@@ -100,11 +101,11 @@ STRICT REQUIREMENTS:
           {
             role: "system",
             content:
-              "You are a code generation API. Directly output a valid JSON object with keys: componentName, html (pure HTML with modern Tailwind CSS classes), and props. Do not include reasoning or markdown explanations.",
+              "You are a code generation API. Do not think, deliberate, or provide chain-of-thought explanations. No thinking. Output ONLY the raw JSON object directly.",
           },
           {
             role: "user",
-            content: `${promptText}\n\nGenerate the complete component now.`,
+            content: `${promptText}\n\nGenerate the complete component now. Output JSON only.`,
           },
         ];
 
@@ -113,14 +114,9 @@ STRICT REQUIREMENTS:
       messages,
       temperature: 0.1,
       max_tokens: 4096,
+      reasoning_effort: "low", // Thinking disabled across all NVIDIA NIM models
       stream: true,
     };
-
-    // If using a deep-reasoning model like GLM-5.3, set reasoning_effort to 'low'
-    // to prevent infinite chain-of-thought token burn (~150s down to ~2s).
-    if (isReasoningModel) {
-      payload.reasoning_effort = "low";
-    }
 
     const res = await fetch(NVIDIA_NIM_ENDPOINT, {
       method: "POST",
