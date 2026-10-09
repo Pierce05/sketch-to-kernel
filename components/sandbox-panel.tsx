@@ -70,10 +70,29 @@ export function SandboxPanel({
 
     if (compileResult.props && compileResult.props.length > 0) {
       compileResult.props.forEach((prop) => {
-        const val = propValues[prop.name] ?? prop.default;
-        // Replace moustache tokens {{propName}} or $propName
-        const tokenRegex = new RegExp(`{{\\s*${prop.name}\\s*}}`, "g");
-        html = html.replace(tokenRegex, val);
+        const currentVal = propValues[prop.name] ?? prop.default;
+        if (currentVal === undefined) return;
+
+        // 1. Replace explicit template tokens: {{propName}}, {propName}, $propName
+        const tokenRegex = new RegExp(`{{\\s*${prop.name}\\s*}}`, "gi");
+        const singleTokenRegex = new RegExp(`(?<![a-zA-Z0-9_-]){\\s*${prop.name}\\s*}(?![a-zA-Z0-9_-])`, "gi");
+        const dollarTokenRegex = new RegExp(`\\$${prop.name}\\b`, "gi");
+
+        const hadTokens = tokenRegex.test(html) || singleTokenRegex.test(html) || dollarTokenRegex.test(html);
+        if (hadTokens) {
+          html = html
+            .replace(tokenRegex, currentVal)
+            .replace(singleTokenRegex, currentVal)
+            .replace(dollarTokenRegex, currentVal);
+        } else if (prop.default && currentVal !== prop.default) {
+          // 2. If no tokens existed in HTML, but user changed prop from default:
+          // dynamically replace occurrences of prop.default with currentVal!
+          try {
+            const escapedDefault = prop.default.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const defaultRegex = new RegExp(escapedDefault, "g");
+            html = html.replace(defaultRegex, currentVal);
+          } catch {}
+        }
       });
     }
 

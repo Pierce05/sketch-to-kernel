@@ -8,6 +8,7 @@ export interface NvidiaCompileOptions {
   apiKey: string;
   modelId: string;
   imageDataUrl: string;
+  wireframeDescription?: string;
 }
 
 export interface NvidiaCompileResult {
@@ -24,6 +25,7 @@ export async function compileWithNvidiaNim({
   apiKey,
   modelId,
   imageDataUrl,
+  wireframeDescription,
 }: NvidiaCompileOptions): Promise<NvidiaCompileResult> {
   const cleanKey = apiKey.trim();
   // Automatically normalize glm-5-3 to official NVIDIA NIM model ID z-ai/glm-5.3
@@ -44,14 +46,25 @@ export async function compileWithNvidiaNim({
   // NVIDIA NIM counts every attempt towards the 39 RPM quota even if it fails or errors.
   recordNvidiaRequest(cleanKey);
 
+  const wireframeDetails = wireframeDescription?.trim()
+    ? `\n\nCANVAS WIREFRAME STRUCTURE & ELEMENTS DETECTED:\n${wireframeDescription.trim()}`
+    : "";
+
   const promptText = `You are an expert Tailwind CSS frontend architect and UI engineer.
-Create a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes based on the user's hand-drawn wireframe.
-Ensure semantic HTML, high visual quality, proper contrast, and sensible hover/focus states.
-Output ONLY raw, parseable JSON conforming to:
+Create a modern, clean, production-grade, and fully responsive HTML component using Tailwind CSS utility classes accurately reflecting the user's hand-drawn wireframe.${wireframeDetails}
+
+STRICT REQUIREMENTS:
+1. Replicate the EXACT elements, labels, buttons, inputs, cards, and structure detected from the wireframe above. Do NOT generate unrelated or random components.
+2. In the HTML code, you MUST use template variables like {{propName}} for all dynamic text, labels, and customizable styling (e.g. {{title}}, {{buttonText}}, {{color}}).
+3. You MUST provide a rich, non-empty "props" array with at least 3-6 relevant props matching those template variables.
+4. Output ONLY a single parseable JSON object matching this schema:
 {
   "componentName": "CustomComponent",
-  "html": "<div class=\\"...\\">...</div>",
-  "props": []
+  "html": "<div class=\\"...\\">{{title}} <button class=\\"...\\">{{buttonText}}</button></div>",
+  "props": [
+    { "name": "title", "type": "string", "default": "Title Text", "description": "Header title" },
+    { "name": "buttonText", "type": "string", "default": "Click Me", "description": "Button label" }
+  ]
 }`;
 
   try {

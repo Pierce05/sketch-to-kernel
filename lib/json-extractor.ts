@@ -70,6 +70,83 @@ export function normalizeProps(rawProps: unknown): ExtractedComponentProp[] {
 }
 
 /**
+ * Synthesizes interactive props from HTML if the model did not supply any props.
+ * Extracts template tokens {{token}} or text nodes from buttons, headings, etc.
+ */
+export function synthesizePropsFromHtml(html: string): ExtractedComponentProp[] {
+  const props: ExtractedComponentProp[] = [];
+  const seenNames = new Set<string>();
+
+  // 1. Check for {{propName}} tokens
+  const tokenMatches = html.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g);
+  for (const match of tokenMatches) {
+    const name = match[1];
+    if (name && !seenNames.has(name.toLowerCase())) {
+      seenNames.add(name.toLowerCase());
+      props.push({
+        name,
+        type: "string",
+        default: name.charAt(0).toUpperCase() + name.slice(1),
+        description: `Dynamic ${name} content`,
+      });
+    }
+  }
+
+  if (props.length > 0) return props;
+
+  // 2. Extract from heading
+  const headingMatch = html.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/i);
+  if (headingMatch && headingMatch[1].trim()) {
+    const text = headingMatch[1].trim();
+    seenNames.add("title");
+    props.push({
+      name: "title",
+      type: "string",
+      default: text,
+      description: "Component header title",
+    });
+  }
+
+  // 3. Extract from button
+  const buttonMatch = html.match(/<button[^>]*>([^<]+)<\/button>/i);
+  if (buttonMatch && buttonMatch[1].trim()) {
+    const text = buttonMatch[1].trim();
+    seenNames.add("buttonText");
+    props.push({
+      name: "buttonText",
+      type: "string",
+      default: text,
+      description: "Call-to-action button label",
+    });
+  }
+
+  // 4. Extract from paragraph
+  const pMatch = html.match(/<p[^>]*>([^<]+)<\/p>/i);
+  if (pMatch && pMatch[1].trim()) {
+    const text = pMatch[1].trim();
+    seenNames.add("description");
+    props.push({
+      name: "description",
+      type: "string",
+      default: text.slice(0, 60),
+      description: "Description or subtitle text",
+    });
+  }
+
+  // 5. Ensure at least default interactive props exist
+  if (props.length === 0) {
+    props.push({
+      name: "label",
+      type: "string",
+      default: "Active Component",
+      description: "Primary component label",
+    });
+  }
+
+  return props;
+}
+
+/**
  * Repairs common LLM JSON syntax mistakes:
  * - Trailing commas before } or ]
  * - Unescaped control characters / newlines inside string literals
@@ -243,13 +320,14 @@ export function extractCompilePayload(
     try {
       const parsed = JSON.parse(cand) as Record<string, unknown>;
       if (parsed && typeof parsed === "object" && typeof parsed.html === "string" && parsed.html.trim()) {
+        const rawProps = normalizeProps(parsed.props);
         return {
           componentName:
             typeof parsed.componentName === "string" && parsed.componentName.trim()
               ? parsed.componentName.trim()
               : deriveComponentName(parsed.html, fallbackName),
           html: parsed.html.trim(),
-          props: normalizeProps(parsed.props),
+          props: rawProps.length > 0 ? rawProps : synthesizePropsFromHtml(parsed.html),
         };
       }
     } catch {}
@@ -259,13 +337,14 @@ export function extractCompilePayload(
       try {
         const parsed = JSON.parse(rep) as Record<string, unknown>;
         if (parsed && typeof parsed === "object" && typeof parsed.html === "string" && parsed.html.trim()) {
+          const rawProps = normalizeProps(parsed.props);
           return {
             componentName:
               typeof parsed.componentName === "string" && parsed.componentName.trim()
                 ? parsed.componentName.trim()
                 : deriveComponentName(parsed.html, fallbackName),
             html: parsed.html.trim(),
-            props: normalizeProps(parsed.props),
+            props: rawProps.length > 0 ? rawProps : synthesizePropsFromHtml(parsed.html),
           };
         }
       } catch {}
@@ -280,7 +359,7 @@ export function extractCompilePayload(
       return {
         componentName: deriveComponentName(code, fallbackName),
         html: code,
-        props: [],
+        props: synthesizePropsFromHtml(code),
       };
     }
   }
@@ -293,7 +372,7 @@ export function extractCompilePayload(
       return {
         componentName: deriveComponentName(extracted, fallbackName),
         html: extracted,
-        props: [],
+        props: synthesizePropsFromHtml(extracted),
       };
     }
   }
@@ -301,10 +380,11 @@ export function extractCompilePayload(
   // Strategy 4: Regex-based extraction of "html" and "componentName"
   const regexExtracted = extractHtmlViaRegex(text);
   if (regexExtracted) {
+    const rawProps = regexExtracted.props || [];
     return {
       componentName: regexExtracted.componentName || deriveComponentName(regexExtracted.html, fallbackName),
       html: regexExtracted.html,
-      props: regexExtracted.props || [],
+      props: rawProps.length > 0 ? rawProps : synthesizePropsFromHtml(regexExtracted.html),
     };
   }
 
@@ -315,7 +395,7 @@ export function extractCompilePayload(
       return {
         componentName: deriveComponentName(diffExtracted, fallbackName),
         html: diffExtracted,
-        props: [],
+        props: synthesizePropsFromHtml(diffExtracted),
       };
     }
   }
@@ -326,7 +406,7 @@ export function extractCompilePayload(
     return {
       componentName: deriveComponentName(rawHtml, fallbackName),
       html: rawHtml,
-      props: [],
+      props: synthesizePropsFromHtml(rawHtml),
     };
   }
 
