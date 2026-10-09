@@ -1,5 +1,5 @@
 import { checkNvidiaRateLimit, recordNvidiaRequest } from "@/lib/nvidia-rate-limiter";
-import { extractFencedJson } from "@/lib/json-extractor";
+import { extractCompilePayload, ExtractedComponentPayload } from "@/lib/json-extractor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileOutputSchema } from "@/lib/schemas";
 import { CompileResponse } from "@/lib/types";
@@ -27,7 +27,7 @@ export async function compileWithNvidiaNim({
 }: NvidiaCompileOptions): Promise<NvidiaCompileResult> {
   const cleanKey = apiKey.trim();
   // Automatically normalize glm-5-3 to official NVIDIA NIM model ID z-ai/glm-5.3
-  let cleanModel = (modelId.trim() || "z-ai/glm-5.3").replace(/glm-5-3/gi, "glm-5.3");
+  const cleanModel = (modelId.trim() || "z-ai/glm-5.3").replace(/glm-5-3/gi, "glm-5.3");
 
   // 1. Strict 39 RPM rate limit check BEFORE sending any request to NVIDIA
   const rateLimitStatus = checkNvidiaRateLimit(cleanKey);
@@ -47,19 +47,23 @@ export async function compileWithNvidiaNim({
   const promptText = `You are an expert Tailwind CSS frontend architect and UI engineer.
 Create a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes based on the user's hand-drawn wireframe.
 Ensure semantic HTML, high visual quality, proper contrast, and sensible hover/focus states.
-DO NOT wrap the output in markdown commentary. Output ONLY raw, parseable JSON conforming to:
+Output ONLY raw, parseable JSON conforming to:
 {
-  "componentName": "string",
-  "html": "string containing pure HTML with Tailwind classes",
-  "props": [
-    { "name": "string", "type": "string", "default": "string", "description": "string" }
-  ]
+  "componentName": "CustomComponent",
+  "html": "<div class=\\"...\\">...</div>",
+  "props": []
 }`;
 
   try {
     const isVisionModel =
       cleanModel.toLowerCase().includes("vision") ||
       cleanModel.toLowerCase().includes("neva");
+
+    const isReasoningModel =
+      cleanModel.toLowerCase().includes("glm") ||
+      cleanModel.toLowerCase().includes("r1") ||
+      cleanModel.toLowerCase().includes("reason") ||
+      cleanModel.toLowerCase().includes("think");
 
     const messages = isVisionModel
       ? [
@@ -82,21 +86,28 @@ DO NOT wrap the output in markdown commentary. Output ONLY raw, parseable JSON c
       : [
           {
             role: "system",
-            content: "You are an expert Tailwind CSS frontend architect. Respond only with parseable JSON containing componentName, html, and props.",
+            content:
+              "You are a code generation API. Directly output a valid JSON object with keys: componentName, html (pure HTML with modern Tailwind CSS classes), and props. Do not include reasoning or markdown explanations.",
           },
           {
             role: "user",
-            content: `${promptText}\n\nGenerate a creative, production-ready wireframe component.`,
+            content: `${promptText}\n\nGenerate the complete component now.`,
           },
         ];
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: cleanModel,
       messages,
-      temperature: 0.2,
+      temperature: 0.1,
       max_tokens: 4096,
       stream: true,
     };
+
+    // If using a deep-reasoning model like GLM-5.3, set reasoning_effort to 'low'
+    // to prevent infinite chain-of-thought token burn (~150s down to ~2s).
+    if (isReasoningModel) {
+      payload.reasoning_effort = "low";
+    }
 
     const res = await fetch(NVIDIA_NIM_ENDPOINT, {
       method: "POST",
@@ -151,28 +162,44 @@ DO NOT wrap the output in markdown commentary. Output ONLY raw, parseable JSON c
       }
     }
 
-    const rawContent = accumulatedContent.trim() || accumulatedReasoning.trim();
+    let payloadResult: ExtractedComponentPayload | null = null;
+    let extractionError: string | null = null;
 
-    if (!rawContent) {
+    // Priority 1: Extract component from accumulated response content
+    if (accumulatedContent.trim()) {
+      try {
+        payloadResult = extractCompilePayload(accumulatedContent.trim());
+      } catch (e: unknown) {
+        extractionError = e instanceof Error ? e.message : String(e);
+      }
+    }
+
+    // Priority 2: If content was empty or unparseable, salvage HTML/JSON from reasoning chunks
+    if (!payloadResult && accumulatedReasoning.trim()) {
+      try {
+        payloadResult = extractCompilePayload(accumulatedReasoning.trim());
+      } catch (e: unknown) {
+        if (!extractionError) {
+          extractionError = e instanceof Error ? e.message : String(e);
+        }
+      }
+    }
+
+    if (!payloadResult) {
       return {
         success: false,
-        error: `NVIDIA NIM (${cleanModel}) returned an empty response.`,
+        error: `NVIDIA NIM (${cleanModel}) compilation failed: ${extractionError || "No valid HTML component or JSON found in model output"}`,
         status: 502,
       };
     }
 
-    // Parse and sanitize response
-    const parsedData = extractFencedJson<{
-      componentName?: string;
-      html?: string;
-      props?: unknown;
-    }>(rawContent);
-    const sanitizedHtml = sanitizeHtml(parsedData.html || "");
+    // Sanitize HTML and validate against output schema
+    const sanitizedHtml = sanitizeHtml(payloadResult.html || "");
 
     const validatedOutput = CompileOutputSchema.parse({
-      componentName: parsedData.componentName || "CompiledComponent",
+      componentName: payloadResult.componentName || "CompiledComponent",
       html: sanitizedHtml,
-      props: parsedData.props || [],
+      props: payloadResult.props || [],
     });
 
     return {
