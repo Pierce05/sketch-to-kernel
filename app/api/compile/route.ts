@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { CompileRequestSchema, CompileOutputSchema } from "@/lib/schemas";
-import { extractFencedJson } from "@/lib/json-extractor";
+import { extractCompilePayload, extractFencedJson } from "@/lib/json-extractor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileResponse } from "@/lib/types";
 import { compileWithNvidiaNim } from "@/lib/nvidia-nim";
@@ -188,7 +188,7 @@ DO NOT wrap the output in markdown code blocks (e.g. NO \`\`\`json or \`\`\`html
       throw new Error("Received empty response from Gemma model");
     }
 
-    const rawParsed = extractFencedJson<unknown>(responseText);
+    const rawParsed = extractCompilePayload(responseText);
     const validatedOutput = CompileOutputSchema.parse(rawParsed);
     const safeHtml = sanitizeHtml(validatedOutput.html);
 
