@@ -1,13 +1,16 @@
 import { z } from "zod";
 
 export const ApiKeyModeSchema = z.enum(["default_1", "default_2", "custom"]);
+export const CustomProviderSchema = z.enum(["gemini", "nvidia"]);
 
 export const CompileRequestSchema = z.object({
   image: z
     .string({ required_error: "image data URL is required" })
     .min(10, "image data URL must not be empty"),
   apiKeyType: ApiKeyModeSchema,
+  customProvider: CustomProviderSchema.optional().default("gemini"),
   customApiKey: z.string().optional(),
+  customModelId: z.string().optional(),
 });
 
 export const ComponentPropSchema = z.object({

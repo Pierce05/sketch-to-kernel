@@ -10,8 +10,13 @@ import {
   SketchHighlight,
   SketchUnderline,
 } from "@/components/sketch-ui";
-import { ApiKeyMode } from "@/lib/types";
-import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
+import { ApiKeyMode, CustomProvider } from "@/lib/types";
+import {
+  STORAGE_CUSTOM_KEY,
+  STORAGE_KEY_MODE,
+  STORAGE_CUSTOM_PROVIDER,
+  STORAGE_CUSTOM_MODEL,
+} from "@/lib/utils";
 import {
   PenTool,
   Sparkles,
@@ -31,6 +36,8 @@ export default function LandingPage() {
   const { navigateWithBlob } = useInkBlobRouter();
   const [apiKeyMode, setApiKeyMode] = useState<ApiKeyMode>("default_1");
   const [customApiKey, setCustomApiKey] = useState("");
+  const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
+  const [customModelId, setCustomModelId] = useState("z-ai/glm-5-3");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -38,6 +45,10 @@ export default function LandingPage() {
       if (savedMode) setApiKeyMode(savedMode);
       const savedKey = localStorage.getItem(STORAGE_CUSTOM_KEY);
       if (savedKey) setCustomApiKey(savedKey);
+      const savedProvider = localStorage.getItem(STORAGE_CUSTOM_PROVIDER) as CustomProvider;
+      if (savedProvider) setCustomProvider(savedProvider);
+      const savedModel = localStorage.getItem(STORAGE_CUSTOM_MODEL);
+      if (savedModel) setCustomModelId(savedModel);
     }
   }, []);
 
@@ -55,6 +66,20 @@ export default function LandingPage() {
     }
   };
 
+  const handleCustomProviderChange = (provider: CustomProvider) => {
+    setCustomProvider(provider);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_PROVIDER, provider);
+    }
+  };
+
+  const handleCustomModelIdChange = (model: string) => {
+    setCustomModelId(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL, model);
+    }
+  };
+
   const handleLaunchPlayground = (e: React.MouseEvent) => {
     e.preventDefault();
     navigateWithBlob("/playground", { x: e.clientX, y: e.clientY });
@@ -68,6 +93,10 @@ export default function LandingPage() {
         onApiKeyModeChange={handleApiKeyModeChange}
         customApiKey={customApiKey}
         onCustomApiKeyChange={handleCustomApiKeyChange}
+        customProvider={customProvider}
+        onCustomProviderChange={handleCustomProviderChange}
+        customModelId={customModelId}
+        onCustomModelIdChange={handleCustomModelIdChange}
       />
 
       <main className="flex-1 bg-sketchbook-grid">

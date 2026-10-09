@@ -1,9 +1,12 @@
 export type ApiKeyMode = "default_1" | "default_2" | "custom";
+export type CustomProvider = "gemini" | "nvidia";
 
 export interface CompileRequest {
   image: string; // Base64 data URL, e.g. "data:image/png;base64,..."
   apiKeyType: ApiKeyMode;
-  customApiKey?: string; // Sent only when apiKeyType === "custom"
+  customProvider?: CustomProvider; // "gemini" | "nvidia"
+  customApiKey?: string; // Sent when apiKeyType === "custom"
+  customModelId?: string; // Sent for NVIDIA NIM custom model
 }
 
 export interface ComponentProp {
