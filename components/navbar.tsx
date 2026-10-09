@@ -6,7 +6,12 @@ import { usePathname } from "next/navigation";
 import { ApiKeyMode } from "@/lib/types";
 import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
-import { SketchButton, SketchCard, SketchBadge } from "@/components/sketch-ui";
+import {
+  SketchButton,
+  SketchCard,
+  SketchBadge,
+  SketchOptionButton,
+} from "@/components/sketch-ui";
 import {
   KeyRound,
   Check,
@@ -112,7 +117,7 @@ export function Navbar({
             </div>
             <div className="flex flex-col">
               <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold font-mono tracking-tight text-[#18181b]">
-                Sketch<span className="text-[#2724d1]">ToKernel</span>
+                Sketch<span className="text-[#2724d1]">2UI</span>
                 <SketchBadge
                   stroke="#2724d1"
                   fill="rgba(39, 36, 209, 0.08)"
@@ -128,47 +133,40 @@ export function Navbar({
         {/* Right Section: API Key Selector & GitHub */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* API Key Mode Selector */}
-          <div className="flex items-center rounded-xl border-2 border-[#18181b] bg-white p-1 shadow-xs">
-            <button
+          <div className="flex items-center gap-1">
+            <SketchOptionButton
               type="button"
+              active={apiKeyMode === "default_1"}
               onClick={() => handleModeSelect("default_1")}
-              className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
-                apiKeyMode === "default_1"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
-              }`}
               title="Default Team Key 1 (Gemma 4 31B)"
+              className="px-2.5 sm:px-3 py-1"
             >
               Key 1
-            </button>
+            </SketchOptionButton>
 
-            <button
+            <SketchOptionButton
               type="button"
+              active={apiKeyMode === "default_2"}
               onClick={() => handleModeSelect("default_2")}
-              className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
-                apiKeyMode === "default_2"
-                  ? "bg-[#2724d1] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
-              }`}
               title="Default Team Key 2 (Fallback)"
+              className="px-2.5 sm:px-3 py-1"
             >
               Key 2
-            </button>
+            </SketchOptionButton>
 
-            <button
+            <SketchOptionButton
               type="button"
+              active={apiKeyMode === "custom"}
+              activeFill="#7c3aed"
+              activeStroke="#7c3aed"
               onClick={() => handleModeSelect("custom")}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
-                apiKeyMode === "custom"
-                  ? "bg-[#7c3aed] text-white shadow-xs"
-                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
-              }`}
               title="Custom Gemini API Key"
+              className="px-2.5 sm:px-3 py-1"
             >
               <KeyRound className="size-3" />
               <span>Custom</span>
               {customApiKey && <span className="size-1.5 rounded-full bg-emerald-500" />}
-            </button>
+            </SketchOptionButton>
           </div>
 
           {/* GitHub Repo Link Badge */}

@@ -75,8 +75,8 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
 
       setIsTransitioning(true);
 
-      // Preload and navigate route behind immediately so target page renders without delay
-      router.push(targetUrl);
+      // Preload the target route ahead of time so assets are warm
+      router.prefetch(targetUrl);
 
       const cx = origin?.x ?? window.innerWidth / 2;
       const cy = origin?.y ?? window.innerHeight / 2;
@@ -84,7 +84,7 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
         Math.hypot(
           Math.max(cx, window.innerWidth - cx),
           Math.max(cy, window.innerHeight - cy)
-        ) * 1.3;
+        ) * 1.35;
       const dropR = Math.min(window.innerWidth, window.innerHeight) * 0.18;
 
       const state = { r: 0, wob: 1, t: 0, opacity: 1 };
@@ -98,28 +98,37 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
       tlRef.current?.kill();
       const tl = gsap.timeline({
         onUpdate: apply,
-        onComplete: () => {
-          // As soon as ink blob floods the screen, fade out immediately to reveal target page
-          gsap.to(overlay, {
-            opacity: 0,
-            duration: 0.35,
-            ease: "power2.out",
-            onComplete: () => {
-              setIsTransitioning(false);
-              overlay.style.clipPath = "circle(0px at 50% 50%)";
-              overlay.style.opacity = "1";
-            },
-          });
-        },
       });
 
       tlRef.current = tl;
 
-      // Fast, snappy organic ink splatter (0.45s total)
-      tl.to(state, { t: 4, duration: 0.45, ease: "none" }, 0);
-      tl.to(state, { r: dropR, duration: 0.15, ease: "back.out(2)" }, 0);
-      tl.to(state, { r: maxR, duration: 0.3, ease: "power3.inOut" }, 0.15);
-      tl.to(state, { wob: 0, duration: 0.2, ease: "power2.out" }, 0.25);
+      // Phase 1: High-performance organic ink splatter expansion
+      tl.to(state, { t: 4, duration: 0.42, ease: "none" }, 0);
+      tl.to(state, { r: dropR, duration: 0.12, ease: "back.out(2)" }, 0);
+      tl.to(state, { r: maxR, duration: 0.28, ease: "power3.in" }, 0.12);
+      tl.to(state, { wob: 0, duration: 0.18, ease: "power2.out" }, 0.22);
+
+      // CRITICAL: Change page ONLY when the ink blob has 100% engulfed the entire viewport
+      tl.call(() => {
+        router.push(targetUrl);
+      });
+
+      // Brief pause to allow the new page to mount smoothly behind the solid ink mask
+      tl.to({}, { duration: 0.18 });
+
+      // Phase 2: Smoothly fade out the ink splatter to unveil the new screen seamlessly
+      tl.to(state, {
+        opacity: 0,
+        duration: 0.35,
+        ease: "power2.out",
+        onComplete: () => {
+          setIsTransitioning(false);
+          if (overlay) {
+            overlay.style.clipPath = "circle(0px at 50% 50%)";
+            overlay.style.opacity = "1";
+          }
+        },
+      });
     },
     [router]
   );
@@ -127,11 +136,11 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
   return (
     <TransitionContext.Provider value={{ navigateWithBlob, isTransitioning }}>
       {children}
-      {/* Fullscreen Ink Blob Splatter Overlay */}
+      {/* Fullscreen Ink Blob Splatter Overlay with 60fps hardware acceleration */}
       <div
         ref={overlayRef}
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[9999] bg-[#2724d1] transition-opacity"
+        className="pointer-events-none fixed inset-0 z-[9999] bg-[#2724d1] transform-gpu will-change-[clip-path,opacity]"
         style={{
           clipPath: "circle(0px at 50% 50%)",
         }}
