@@ -1,3 +1,6 @@
+# Agent
+.agent/
+
 # Logs
 logs
 *.log
