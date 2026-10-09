@@ -131,14 +131,14 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
       <div
         ref={overlayRef}
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[9999] bg-[#0c0e15] transition-opacity"
+        className="pointer-events-none fixed inset-0 z-[9999] bg-[#2724d1] transition-opacity"
         style={{
           clipPath: "circle(0px at 50% 50%)",
         }}
       >
-        {/* Ink blob wash */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-slate-950 to-purple-950" />
-        <div className="absolute inset-0 bg-dot-matrix opacity-30" />
+        {/* Drawably Blue Liquid Ink Splatter with organic edge wash */}
+        <div className="absolute inset-0 bg-[#2724d1]" />
+        <div className="absolute inset-0 bg-radial from-[#3b38ea] via-[#2724d1] to-[#1a1899] opacity-90" />
       </div>
     </TransitionContext.Provider>
   );

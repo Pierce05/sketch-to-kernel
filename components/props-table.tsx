@@ -19,9 +19,9 @@ export function PropsTable({
 }: PropsTableProps) {
   if (!props || props.length === 0) {
     return (
-      <div className="flex items-center justify-between border-t border-[#232738] bg-[#0e1017] p-4 text-xs text-gray-500">
+      <div className="flex items-center justify-between border-t-2 border-[#18181b] bg-[#f6f5f0] p-4 text-xs text-[#71717a]">
         <div className="flex items-center gap-2">
-          <Sliders className="size-4 text-gray-600" />
+          <Sliders className="size-4 text-[#71717a]" />
           <span>No customizable variables detected in current component.</span>
         </div>
       </div>
@@ -29,22 +29,22 @@ export function PropsTable({
   }
 
   return (
-    <div className="flex flex-col border-t border-[#232738] bg-[#0c0e15]">
+    <div className="flex flex-col border-t-2 border-[#18181b] bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#232738] bg-[#11131b] px-4 py-2.5">
+      <div className="flex items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <Sliders className="size-3.5 text-indigo-400" />
-          <span className="text-xs font-semibold text-gray-200">
-            Detected Component Props & Slots
+          <Sliders className="size-3.5 text-[#2724d1]" />
+          <span className="text-xs font-bold font-mono text-[#18181b]">
+            Component Props &amp; Live Slots
           </span>
-          <span className="rounded bg-indigo-950/60 px-1.5 py-0.5 text-[10px] font-mono text-indigo-300 border border-indigo-800/40">
+          <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[10px] font-mono font-bold text-[#2724d1] border border-[#2724d1]">
             {props.length} variables
           </span>
         </div>
 
         <button
           onClick={onResetProps}
-          className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-indigo-300 transition-colors"
+          className="flex items-center gap-1 text-[11px] font-mono font-semibold text-[#52525b] hover:text-[#2724d1] transition-colors"
           title="Reset all props to defaults"
         >
           <RotateCcw className="size-3" />
@@ -55,22 +55,22 @@ export function PropsTable({
       {/* Table content */}
       <div className="overflow-x-auto max-h-56 overflow-y-auto">
         <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-[#0e1017] text-[11px] font-mono uppercase text-gray-400 border-b border-[#232738]/60">
+          <thead className="sticky top-0 bg-[#f8f7f2] text-[11px] font-mono uppercase text-[#52525b] border-b border-[#18181b]/30">
             <tr>
-              <th className="px-4 py-2 font-semibold">Prop</th>
-              <th className="px-3 py-2 font-semibold">Type</th>
-              <th className="px-3 py-2 font-semibold">Live Value (Edit)</th>
-              <th className="px-4 py-2 font-semibold hidden sm:table-cell">Description</th>
+              <th className="px-4 py-2 font-bold">Prop</th>
+              <th className="px-3 py-2 font-bold">Type</th>
+              <th className="px-3 py-2 font-bold">Live Value (Edit)</th>
+              <th className="px-4 py-2 font-bold hidden sm:table-cell">Description</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#232738]/40 font-sans">
+          <tbody className="divide-y divide-[#18181b]/10 font-sans">
             {props.map((prop) => (
-              <tr key={prop.name} className="hover:bg-[#141722]/50 transition-colors">
-                <td className="px-4 py-2.5 font-mono text-xs font-semibold text-indigo-300 whitespace-nowrap">
+              <tr key={prop.name} className="hover:bg-blue-50/30 transition-colors">
+                <td className="px-4 py-2.5 font-mono text-xs font-bold text-[#2724d1] whitespace-nowrap">
                   {prop.name}
                 </td>
-                <td className="px-3 py-2.5 font-mono text-[11px] text-purple-300 whitespace-nowrap">
-                  <span className="rounded bg-purple-950/40 px-1.5 py-0.5 border border-purple-800/30">
+                <td className="px-3 py-2.5 font-mono text-[11px] text-[#7c3aed] whitespace-nowrap">
+                  <span className="rounded bg-purple-50 px-1.5 py-0.5 border border-purple-200">
                     {prop.type}
                   </span>
                 </td>
@@ -80,10 +80,10 @@ export function PropsTable({
                     value={values[prop.name] ?? prop.default}
                     onChange={(e) => onPropChange(prop.name, e.target.value)}
                     placeholder={prop.default}
-                    className="w-full min-w-[120px] rounded-lg border border-[#2b3044] bg-[#090a0f] px-2.5 py-1 text-xs text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="w-full min-w-[120px] rounded-lg border-2 border-[#18181b] bg-[#fcfbf9] px-2.5 py-1 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#2724d1] focus:outline-none"
                   />
                 </td>
-                <td className="px-4 py-2.5 text-xs text-gray-400 hidden sm:table-cell">
+                <td className="px-4 py-2.5 text-xs text-[#52525b] hidden sm:table-cell">
                   {prop.description}
                 </td>
               </tr>

@@ -62,47 +62,50 @@ export default function PlaygroundPage() {
     };
 
     try {
-      const response = await fetch("/api/compile", {
+      const res = await fetch("/api/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error(`Server returned HTTP ${response.status}`);
+      if (!res.ok) {
+        throw new Error(`API compilation returned status ${res.status}`);
       }
 
-      const data: CompileResponse = await response.json();
-      if (data.error) {
+      const data: CompileResponse = await res.json();
+
+      if (data.error && !data.html) {
         throw new Error(data.error);
       }
 
       setCompileResult(data);
       setIsMock(false);
-      setMobileTab("preview"); // Automatically show preview on mobile
+
+      // On mobile, automatically switch tab to preview on success
+      setMobileTab("preview");
 
       confetti({
         particleCount: 50,
         spread: 70,
         origin: { y: 0.6 },
       });
-    } catch {
-      // Graceful Mock Fallback: Use selected preset or default SaaS Pricing Card
-      const fallbackPreset = selectedPreset ?? CANVAS_PRESETS[0];
+    } catch (err: unknown) {
+      console.warn("Backend compile API error. Falling back to Hacktoberfest preset mock:", err);
 
+      // Graceful fallback mock
+      const fallbackPreset = selectedPreset || CANVAS_PRESETS[0];
       setCompileResult({
         componentName: fallbackPreset.mockResponse.componentName,
         html: fallbackPreset.mockResponse.html,
         props: fallbackPreset.mockResponse.props,
       });
       setIsMock(true);
-      setMobileTab("preview"); // Switch to preview on mobile
+      setMobileTab("preview");
 
-      confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.6 },
-      });
+      const errString = err instanceof Error ? err.message : String(err);
+      if (!errString.includes("404") && !errString.includes("status")) {
+        setErrorMessage(`Compilation notice: ${errString}. Loaded preset fallback.`);
+      }
     } finally {
       setIsCompiling(false);
     }
@@ -115,7 +118,7 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#090a0f] text-gray-100 selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="flex min-h-screen flex-col bg-[#f6f5f0] text-[#18181b] font-sans selection:bg-[#fef08a] selection:text-[#18181b]">
       {/* Top Navbar */}
       <Navbar
         apiKeyMode={apiKeyMode}
@@ -126,14 +129,14 @@ export default function PlaygroundPage() {
 
       {/* Error / Notice Banner */}
       {errorMessage && (
-        <div className="flex items-center justify-between border-b border-red-900/40 bg-red-950/40 px-4 py-2 text-xs text-red-300">
+        <div className="flex items-center justify-between border-b-2 border-[#d12724] bg-red-50 px-4 py-2 text-xs text-[#d12724] font-mono">
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 text-red-400" />
+            <AlertCircle className="size-4 text-[#d12724]" />
             <span>{errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-red-400 hover:text-red-200"
+            className="text-[#d12724] hover:text-red-900 font-bold"
           >
             ✕
           </button>
@@ -141,13 +144,13 @@ export default function PlaygroundPage() {
       )}
 
       {/* Mobile Tab Toggle Bar (visible only below md breakpoint) */}
-      <div className="flex md:hidden items-center justify-around border-b border-[#232738] bg-[#11131b] p-1.5 text-xs">
+      <div className="flex md:hidden items-center justify-around border-b-2 border-[#18181b] bg-[#eceae1] p-1.5 text-xs font-mono">
         <button
           onClick={() => setMobileTab("canvas")}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-medium transition-colors ${
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-bold transition-all ${
             mobileTab === "canvas"
-              ? "bg-indigo-600 text-white shadow"
-              : "text-gray-400 hover:text-gray-200"
+              ? "bg-[#2724d1] text-white shadow-xs"
+              : "text-[#52525b] hover:text-[#18181b]"
           }`}
         >
           <PenTool className="size-3.5" />
@@ -156,22 +159,22 @@ export default function PlaygroundPage() {
 
         <button
           onClick={() => setMobileTab("preview")}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-medium transition-colors ${
+          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-bold transition-all ${
             mobileTab === "preview"
-              ? "bg-indigo-600 text-white shadow"
-              : "text-gray-400 hover:text-gray-200"
+              ? "bg-[#2724d1] text-white shadow-xs"
+              : "text-[#52525b] hover:text-[#18181b]"
           }`}
         >
           <Eye className="size-3.5" />
           <span>Live Preview &amp; Code</span>
           {compileResult && (
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
           )}
         </button>
       </div>
 
       {/* Main Split-Screen Workbench Body */}
-      <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden">
+      <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden bg-sketchbook-grid">
         <div className="mx-auto flex h-[calc(100vh-5.5rem)] max-w-7xl flex-col md:flex-row gap-4">
           {/* Left Panel: Drawing Canvas */}
           <div

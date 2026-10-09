@@ -41,11 +41,11 @@ interface DraggableStamp {
 }
 
 const PEN_COLORS = [
-  { name: "Blue Ink", hex: "#2563eb" },
-  { name: "Graphite Black", hex: "#0f172a" },
-  { name: "Chalk White", hex: "#f8fafc" },
-  { name: "Ruby Red", hex: "#e11d48" },
-  { name: "Mint Green", hex: "#10b981" },
+  { name: "Ballpoint Blue", hex: "#2724d1" },
+  { name: "Charcoal Ink", hex: "#18181b" },
+  { name: "Ruby Red", hex: "#d12724" },
+  { name: "Emerald Green", hex: "#188a42" },
+  { name: "Graphite Pencil", hex: "#52525b" },
 ];
 
 const STROKE_SIZES = [
@@ -66,8 +66,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
 
-  // Background canvas color (Sketchbook paper)
-  const canvasBgColor = "#0f111a";
+  // Background canvas color (Sketchbook paper white)
+  const canvasBgColor = "#ffffff";
 
   // Undo / Redo history
   const [history, setHistory] = useState<ImageData[]>([]);
@@ -95,14 +95,13 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
-    // Preserve existing canvas pixels across resize if available
     let tempCanvas: HTMLCanvasElement | null = null;
     if (canvas.width > 0 && canvas.height > 0) {
       tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
-      const tCtx = tempCanvas.getContext("2d");
-      tCtx?.drawImage(canvas, 0, 0);
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx?.drawImage(canvas, 0, 0);
     }
 
     canvas.width = rect.width * dpr;
@@ -110,7 +109,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.scale(dpr, dpr);
@@ -122,70 +121,81 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     } else {
       ctx.fillStyle = canvasBgColor;
       ctx.fillRect(0, 0, rect.width, rect.height);
-      saveState();
+      const initialSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory([initialSnapshot]);
     }
-  }, []);
+  }, [canvasBgColor]);
 
   useEffect(() => {
     setupCanvas();
-    window.addEventListener("resize", setupCanvas);
-    return () => window.removeEventListener("resize", setupCanvas);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      setupCanvas();
+    });
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
   }, [setupCanvas]);
 
-  const saveState = () => {
+  const saveHistorySnapshot = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    setHistory((prev) => [...prev.slice(-20), imgData]);
+
+    const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    setHistory((prev) => [...prev.slice(-15), snapshot]);
     setRedoStack([]);
   };
 
   const undo = () => {
     if (history.length <= 1) return;
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const current = history[history.length - 1];
     const previous = history[history.length - 2];
 
     setRedoStack((prev) => [...prev, current]);
     setHistory((prev) => prev.slice(0, -1));
+
     ctx.putImageData(previous, 0, 0);
   };
 
   const redo = () => {
     if (redoStack.length === 0) return;
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const next = redoStack[redoStack.length - 1];
     setRedoStack((prev) => prev.slice(0, -1));
     setHistory((prev) => [...prev, next]);
+
     ctx.putImageData(next, 0, 0);
   };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = container.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = canvasBgColor;
     ctx.fillRect(0, 0, rect.width, rect.height);
     setStamps([]);
-    setHasDrawn(false);
     setSelectedPreset(null);
-    saveState();
+    setHasDrawn(false);
+    saveHistorySnapshot();
   };
 
-  // Coordinates helper
-  const getPointerPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
+  const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -195,66 +205,110 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     };
   };
 
-  // Pointer Down: Start continuous stroke
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const pos = getPointerPos(e);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const point = getCanvasPoint(e);
+    lastPointRef.current = point;
     setIsDrawing(true);
     setHasDrawn(true);
-    lastPointRef.current = pos;
 
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.beginPath();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-
-    // Immediate initial dab so even a quick tap makes a mark
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, strokeWidth / 2, 0, Math.PI * 2);
+    ctx.strokeStyle = activeTool === "eraser" ? canvasBgColor : penColor;
     ctx.fillStyle = activeTool === "eraser" ? canvasBgColor : penColor;
+    ctx.lineWidth = activeTool === "eraser" ? strokeWidth * 2.5 : strokeWidth;
+
+    ctx.arc(point.x, point.y, ctx.lineWidth / 2, 0, Math.PI * 2);
     ctx.fill();
   };
 
-  // Pointer Move: 100% Solid Continuous Unbroken Stroke (Fixes dotted line issue)
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !lastPointRef.current) return;
+    const currentPoint = getCanvasPoint(e);
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const currentPos = getPointerPos(e);
-    const lastPos = lastPointRef.current;
-
     ctx.beginPath();
-    ctx.strokeStyle = activeTool === "eraser" ? canvasBgColor : penColor;
-    ctx.lineWidth = activeTool === "eraser" ? strokeWidth * 3.5 : strokeWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.strokeStyle = activeTool === "eraser" ? canvasBgColor : penColor;
+    ctx.lineWidth = activeTool === "eraser" ? strokeWidth * 2.5 : strokeWidth;
 
-    // Continuous lineTo guarantees zero gaps or dots
-    ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.lineTo(currentPos.x, currentPos.y);
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(currentPoint.x, currentPoint.y);
     ctx.stroke();
 
-    lastPointRef.current = currentPos;
+    lastPointRef.current = currentPoint;
   };
 
-  // Pointer Up
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
-      // Ignore
+      // Ignore if pointer capture was already released
     }
     setIsDrawing(false);
     lastPointRef.current = null;
-    saveState();
+    saveHistorySnapshot();
   };
 
-  // File Upload
+  const addStamp = (type: DraggableStamp["type"]) => {
+    const id = `stamp-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+    let width = 120;
+    let height = 40;
+    let label = "Button";
+
+    switch (type) {
+      case "button":
+        width = 130;
+        height = 42;
+        label = "[ Sketch Button ]";
+        break;
+      case "input":
+        width = 180;
+        height = 40;
+        label = "[ Input Field... ]";
+        break;
+      case "card":
+        width = 220;
+        height = 130;
+        label = "Napkin Card Container";
+        break;
+      case "badge":
+        width = 90;
+        height = 28;
+        label = "★ Badge";
+        break;
+      case "checkbox":
+        width = 140;
+        height = 32;
+        label = "☑ Checkbox Item";
+        break;
+    }
+
+    const newStamp: DraggableStamp = {
+      id,
+      type,
+      x: 60 + stamps.length * 15,
+      y: 60 + stamps.length * 15,
+      width,
+      height,
+      label,
+    };
+
+    setStamps((prev) => [...prev, newStamp]);
+    setHasDrawn(true);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -264,80 +318,79 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       const img = new Image();
       img.onload = () => {
         const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
+        if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        const rect = container.getBoundingClientRect();
-        const scale = Math.min((rect.width * 0.9) / img.width, (rect.height * 0.9) / img.height);
-        const nw = img.width * scale;
-        const nh = img.height * scale;
-        const nx = (rect.width - nw) / 2;
-        const ny = (rect.height - nh) / 2;
+        const rect = canvas.getBoundingClientRect();
+        const scale = Math.min(
+          (rect.width * 0.9) / img.width,
+          (rect.height * 0.9) / img.height,
+          1
+        );
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (rect.width - w) / 2;
+        const y = (rect.height - h) / 2;
 
-        ctx.drawImage(img, nx, ny, nw, nh);
+        ctx.fillStyle = canvasBgColor;
+        ctx.fillRect(0, 0, rect.width, rect.height);
+        ctx.drawImage(img, x, y, w, h);
         setHasDrawn(true);
-        saveState();
+        saveHistorySnapshot();
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
 
-  // Stamp tools: add hand-drawn element stamp onto board
-  const addStamp = (type: DraggableStamp["type"]) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-
-    const newStamp: DraggableStamp = {
-      id: `stamp-${Date.now()}`,
-      type,
-      x: rect.width / 2 - 75,
-      y: rect.height / 2 - 25,
-      width: type === "card" ? 180 : 130,
-      height: type === "card" ? 120 : 40,
-      label:
-        type === "button"
-          ? "[ CTA Button ]"
-          : type === "input"
-          ? "[ User Input ]"
-          : type === "card"
-          ? "[ Project Card ]"
-          : type === "badge"
-          ? "[ Track Badge ]"
-          : "[✓] Upvote",
-    };
-
-    setStamps((prev) => [...prev, newStamp]);
-    setHasDrawn(true);
-  };
-
-  // Load a preset sketch onto canvas
   const handleSelectPreset = (preset: CanvasPreset) => {
+    setSelectedPreset(preset);
+    setIsDrawerOpen(false);
+
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = container.getBoundingClientRect();
-
-    // Reset background
+    const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = canvasBgColor;
     ctx.fillRect(0, 0, rect.width, rect.height);
-    setStamps([]);
 
-    // Draw preset onto canvas
-    preset.draw(ctx, rect.width, rect.height);
+    ctx.save();
+    ctx.strokeStyle = "#2724d1";
+    ctx.lineWidth = 2;
+    ctx.fillStyle = "#18181b";
+    ctx.font = "bold 16px 'Drawably Pen', monospace";
+
+    const startX = 35;
+    const startY = 40;
+    const cardWidth = Math.min(rect.width - 70, 420);
+    const cardHeight = Math.min(rect.height - 80, 260);
+
+    ctx.strokeRect(startX, startY, cardWidth, cardHeight);
+    ctx.fillText(`[ WIREFRAME: ${preset.title.toUpperCase()} ]`, startX + 15, startY + 30);
+
+    ctx.lineWidth = 1.5;
+    ctx.font = "13px monospace";
+    ctx.fillStyle = "#52525b";
+    ctx.fillText(`Target: ${preset.category}`, startX + 15, startY + 60);
+
+    ctx.strokeStyle = "#71717a";
+    ctx.strokeRect(startX + 15, startY + 80, cardWidth - 30, 40);
+    ctx.fillText("Main Component Content Slot", startX + 25, startY + 105);
+
+    ctx.strokeStyle = "#2724d1";
+    ctx.strokeRect(startX + 15, startY + 140, 140, 36);
+    ctx.fillStyle = "#2724d1";
+    ctx.fillText("[ Action Button ]", startX + 25, startY + 162);
+
+    ctx.restore();
     setHasDrawn(true);
-    setSelectedPreset(preset);
-    saveState();
-    setIsDrawerOpen(false);
+    setStamps([]);
+    saveHistorySnapshot();
   };
 
-  // Composite canvas for export
   const exportCompositeCanvas = (): string => {
     const canvas = canvasRef.current;
     if (!canvas) return "";
@@ -355,14 +408,14 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     ctx.scale(dpr, dpr);
 
     stamps.forEach((stamp) => {
-      ctx.strokeStyle = "#4f46e5";
+      ctx.strokeStyle = "#2724d1";
       ctx.lineWidth = 2;
-      ctx.fillStyle = "rgba(79, 70, 229, 0.12)";
+      ctx.fillStyle = "rgba(39, 36, 209, 0.08)";
       ctx.strokeRect(stamp.x, stamp.y, stamp.width, stamp.height);
       ctx.fillRect(stamp.x, stamp.y, stamp.width, stamp.height);
 
-      ctx.fillStyle = "#e0e7ff";
-      ctx.font = "12px monospace";
+      ctx.fillStyle = "#18181b";
+      ctx.font = "bold 12px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(stamp.label, stamp.x + stamp.width / 2, stamp.y + stamp.height / 2);
@@ -378,21 +431,21 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   };
 
   return (
-    <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border-2 border-[#2b3044] bg-[#0c0e15] shadow-2xl">
+    <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border-2 border-[#18181b] bg-white shadow-xl">
       {/* Top Toolbox: Generously spaced tool groups */}
-      <div className="flex flex-wrap items-center justify-between border-b-2 border-[#232738] bg-[#131520] px-4 py-2.5 text-xs gap-3">
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-4 py-2.5 text-xs gap-3">
         {/* Tool Group 1: Pen / Eraser Modes */}
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold mr-1">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold mr-1">
             Tools:
           </span>
-          <div className="flex items-center gap-1 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1">
+          <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-1">
             <button
               onClick={() => setActiveTool("pen")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all ${
                 activeTool === "pen"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-[#2724d1] text-white shadow-xs"
+                  : "text-[#52525b] hover:text-[#18181b]"
               }`}
               title="Pen tool"
             >
@@ -401,10 +454,10 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             </button>
             <button
               onClick={() => setActiveTool("eraser")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all ${
                 activeTool === "eraser"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-[#2724d1] text-white shadow-xs"
+                  : "text-[#52525b] hover:text-[#18181b]"
               }`}
               title="Eraser tool"
             >
@@ -417,17 +470,17 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         {/* Tool Group 2: Ink Colors (Spaced) */}
         {activeTool === "pen" && (
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold">
               Ink:
             </span>
-            <div className="flex items-center gap-2 rounded-xl border border-[#2b3044] bg-[#0a0b10] px-2.5 py-1.5">
+            <div className="flex items-center gap-2 rounded-xl border border-[#18181b] bg-white px-2.5 py-1.5">
               {PEN_COLORS.map((col) => (
                 <button
                   key={col.hex}
                   onClick={() => setPenColor(col.hex)}
                   className={`size-5 rounded-full transition-transform ${
                     penColor === col.hex
-                      ? "scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0a0b10]"
+                      ? "scale-125 ring-2 ring-[#18181b] ring-offset-2 ring-offset-white"
                       : "opacity-60 hover:opacity-100 hover:scale-110"
                   }`}
                   style={{ backgroundColor: col.hex }}
@@ -440,18 +493,18 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
 
         {/* Tool Group 3: Stroke Widths (Spaced) */}
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold">
             Size:
           </span>
-          <div className="flex items-center gap-1.5 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1">
+          <div className="flex items-center gap-1.5 rounded-xl border border-[#18181b] bg-white p-1">
             {STROKE_SIZES.map((sz) => (
               <button
                 key={sz.size}
                 onClick={() => setStrokeWidth(sz.size)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-mono transition-colors ${
                   strokeWidth === sz.size
-                    ? "bg-indigo-700 text-white font-bold"
-                    : "text-gray-400 hover:text-white"
+                    ? "bg-[#2724d1] text-white font-bold"
+                    : "text-[#52525b] hover:text-[#18181b]"
                 }`}
                 title={`${sz.label} stroke width`}
               >
@@ -462,13 +515,13 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         </div>
 
         {/* Tool Group 4: History & Action Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Undo / Redo */}
-          <div className="flex items-center gap-1 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1 text-gray-400">
+          <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-1 text-[#52525b]">
             <button
               onClick={undo}
               disabled={history.length <= 1}
-              className="rounded-lg p-1.5 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+              className="rounded-lg p-1.5 hover:bg-[#f5f4ee] hover:text-[#18181b] disabled:opacity-30"
               title="Undo"
             >
               <RotateCcw className="size-3.5" />
@@ -476,7 +529,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             <button
               onClick={redo}
               disabled={redoStack.length === 0}
-              className="rounded-lg p-1.5 hover:bg-gray-800 hover:text-white disabled:opacity-30"
+              className="rounded-lg p-1.5 hover:bg-[#f5f4ee] hover:text-[#18181b] disabled:opacity-30"
               title="Redo"
             >
               <RotateCw className="size-3.5" />
@@ -486,20 +539,20 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           {/* "Try These" Preset Drawer Trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border-2 border-indigo-500/60 bg-indigo-950/70 px-3.5 py-1.5 font-mono text-xs font-bold text-indigo-300 hover:bg-indigo-900 shadow-md transition-all active:scale-95"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-[#2724d1] bg-blue-50 px-3.5 py-1.5 font-mono text-xs font-bold text-[#2724d1] hover:bg-blue-100 shadow-xs transition-all active:scale-95"
             title="Open example preset napkin wireframes"
           >
-            <Sparkles className="size-3.5 text-indigo-400" />
+            <Sparkles className="size-3.5 text-[#2724d1]" />
             <span>Try These</span>
           </button>
 
           {/* Photo Dropzone */}
           <label
-            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#2b3044] bg-[#0a0b10] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 transition-colors"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#18181b] bg-white px-3 py-1.5 text-xs text-[#18181b] hover:bg-[#f5f4ee] transition-colors"
             title="Upload photo of paper wireframe"
           >
-            <UploadCloud className="size-3.5 text-indigo-400" />
-            <span className="hidden sm:inline font-mono">Photo</span>
+            <UploadCloud className="size-3.5 text-[#2724d1]" />
+            <span className="hidden sm:inline font-mono font-semibold">Photo</span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -511,7 +564,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           {/* Clear Button */}
           <button
             onClick={clearCanvas}
-            className="flex items-center justify-center rounded-xl border border-red-900/40 bg-red-950/20 p-2 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+            className="flex items-center justify-center rounded-xl border border-[#d12724] bg-red-50 p-2 text-[#d12724] hover:bg-red-100 transition-colors"
             title="Clear canvas"
           >
             <Trash2 className="size-3.5" />
@@ -520,51 +573,52 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       </div>
 
       {/* Drawably Element Stamp Bar */}
-      <div className="flex items-center gap-2 border-b border-[#232738] bg-[#0e1017] px-4 py-2 text-xs overflow-x-auto">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-bold whitespace-nowrap mr-1">
+      <div className="flex items-center gap-2 border-b border-[#18181b] bg-[#faf9f5] px-4 py-2 text-xs overflow-x-auto">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold whitespace-nowrap mr-1">
           Drawably Stamps:
         </span>
         <button
           onClick={() => addStamp("button")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-indigo-500/40 bg-indigo-950/30 px-3 py-1 text-xs font-mono text-indigo-200 hover:border-indigo-400 hover:bg-indigo-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#2724d1] bg-blue-50/60 px-3 py-1 text-xs font-mono text-[#2724d1] hover:bg-blue-100 transition-colors whitespace-nowrap"
         >
-          <Square className="size-3 text-indigo-400" /> + Button
+          <Square className="size-3" />
+          <span>+ Button</span>
         </button>
         <button
           onClick={() => addStamp("input")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-purple-500/40 bg-purple-950/30 px-3 py-1 text-xs font-mono text-purple-200 hover:border-purple-400 hover:bg-purple-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#7c3aed] bg-purple-50/60 px-3 py-1 text-xs font-mono text-[#7c3aed] hover:bg-purple-100 transition-colors whitespace-nowrap"
         >
-          <Type className="size-3 text-purple-400" /> + Input
+          <Type className="size-3" />
+          <span>+ Input</span>
         </button>
         <button
           onClick={() => addStamp("card")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-pink-500/40 bg-pink-950/30 px-3 py-1 text-xs font-mono text-pink-200 hover:border-pink-400 hover:bg-pink-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#18181b] bg-gray-50 px-3 py-1 text-xs font-mono text-[#18181b] hover:bg-gray-100 transition-colors whitespace-nowrap"
         >
-          <Layers className="size-3 text-pink-400" /> + Card Box
+          <Layers className="size-3" />
+          <span>+ Card</span>
         </button>
         <button
           onClick={() => addStamp("badge")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-emerald-500/40 bg-emerald-950/30 px-3 py-1 text-xs font-mono text-emerald-200 hover:border-emerald-400 hover:bg-emerald-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#188a42] bg-emerald-50/60 px-3 py-1 text-xs font-mono text-[#188a42] hover:bg-emerald-100 transition-colors whitespace-nowrap"
         >
-          <Circle className="size-3 text-emerald-400" /> + Badge
+          <Circle className="size-3" />
+          <span>+ Badge</span>
         </button>
         <button
           onClick={() => addStamp("checkbox")}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-amber-500/40 bg-amber-950/30 px-3 py-1 text-xs font-mono text-amber-200 hover:border-amber-400 hover:bg-amber-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#d12724] bg-red-50/60 px-3 py-1 text-xs font-mono text-[#d12724] hover:bg-red-100 transition-colors whitespace-nowrap"
         >
-          <CheckSquare className="size-3 text-amber-400" /> + Upvote
+          <CheckSquare className="size-3" />
+          <span>+ Checkbox</span>
         </button>
       </div>
 
-      {/* Main Drawing Canvas Surface */}
+      {/* Main Drawing Area: Authentic Sketchbook White Paper with Dot Matrix */}
       <div
         ref={containerRef}
-        className="relative flex-1 w-full bg-[#0f111a] overflow-hidden select-none"
+        className="relative flex-1 bg-white select-none overflow-hidden bg-sketchbook-dots"
       >
-        {/* Subtle Graph Paper Pattern */}
-        <div className="absolute inset-0 bg-dot-matrix opacity-25 pointer-events-none" />
-
-        {/* Smooth HTML5 Canvas */}
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
@@ -607,15 +661,15 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               width: `${stamp.width}px`,
               height: `${stamp.height}px`,
             }}
-            className="absolute flex items-center justify-center rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-950/60 font-mono text-xs text-indigo-200 cursor-move shadow-xl backdrop-blur-xs select-none"
+            className="absolute flex items-center justify-center rounded-xl border-2 border-dashed border-[#2724d1] bg-blue-50/80 font-mono text-xs text-[#18181b] cursor-move shadow-md select-none"
           >
-            <span>{stamp.label}</span>
+            <span className="font-bold">{stamp.label}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setStamps((prev) => prev.filter((s) => s.id !== stamp.id));
               }}
-              className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-red-600 text-xs text-white hover:bg-red-500 shadow"
+              className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-xs text-white hover:bg-red-700 shadow-xs"
               title="Remove stamp"
             >
               ✕
@@ -626,13 +680,13 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         {/* Empty Canvas Guidance */}
         {!hasDrawn && stamps.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-            <div className="flex size-14 items-center justify-center rounded-2xl border-2 border-indigo-500/40 bg-indigo-950/40 text-indigo-400 mb-3 shadow-inner">
-              <PenTool className="size-6" />
+            <div className="flex size-14 items-center justify-center rounded-2xl border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] mb-3 shadow-xs">
+              <PenTool className="size-6 stroke-[2.2]" />
             </div>
-            <h4 className="text-base font-bold text-gray-200 font-mono">
+            <h4 className="text-base font-bold text-[#18181b] font-mono">
               Digital Napkin Sketchboard
             </h4>
-            <p className="mt-1 text-xs text-gray-400 max-w-sm leading-relaxed">
+            <p className="mt-1 text-xs text-[#52525b] max-w-sm leading-relaxed">
               Draw your wireframe freely with mouse or stylus. Click &ldquo;Try These&rdquo; above to load ready-to-test hackathon napkin presets!
             </p>
           </div>
@@ -640,25 +694,26 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       </div>
 
       {/* Bottom Floating Compile Action Bar */}
-      <div className="flex items-center justify-between border-t-2 border-[#232738] bg-[#131520] px-4 py-3">
+      <div className="flex items-center justify-between border-t-2 border-[#18181b] bg-[#eceae1] px-4 py-3">
         <div className="flex items-center gap-2">
           {selectedPreset ? (
-            <span className="flex items-center gap-1.5 rounded-lg bg-indigo-950/80 px-2.5 py-1 text-xs font-mono font-bold text-indigo-300 border border-indigo-700/60">
-              <Sparkles className="size-3.5 text-indigo-400" />
+            <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-mono font-bold text-[#2724d1] border border-[#2724d1]">
+              <Sparkles className="size-3.5 text-[#2724d1]" />
               Active: {selectedPreset.title}
             </span>
           ) : (
-            <span className="text-xs text-gray-400 font-mono">
+            <span className="text-xs text-[#52525b] font-mono">
               {hasDrawn || stamps.length > 0 ? "Ready to compile" : "Sketch on canvas"}
             </span>
           )}
         </div>
 
-        {/* Compile Button */}
-        <button
+        {/* Compile Button with fresh pen re-sketch on hover */}
+        <SketchButton
+          variant="primary"
           onClick={handleCompileClick}
           disabled={isCompiling || (!hasDrawn && stamps.length === 0)}
-          className="group relative flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-2.5 text-xs font-mono font-bold text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+          className="text-xs font-bold py-2.5 px-6"
         >
           {isCompiling ? (
             <>
@@ -675,11 +730,11 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             </>
           ) : (
             <>
-              <Sparkles className="size-4 text-white transition-transform group-hover:rotate-12" />
+              <Sparkles className="size-4 text-white" />
               <span>Compile Component →</span>
             </>
           )}
-        </button>
+        </SketchButton>
       </div>
 
       {/* "Try These" Side Drawer (Game Level Selector style) */}
@@ -688,24 +743,24 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           {/* Backdrop blur */}
           <div
             onClick={() => setIsDrawerOpen(false)}
-            className="absolute inset-0 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
           />
 
           {/* Drawer */}
-          <div className="relative z-10 flex h-full w-full max-w-sm flex-col border-r-2 border-[#2b3044] bg-[#0c0e15] shadow-2xl animate-in slide-in-from-left duration-250">
-            <div className="flex items-center justify-between border-b-2 border-[#232738] p-4 bg-[#131520]">
+          <div className="relative z-10 flex h-full w-full max-w-sm flex-col border-r-2 border-[#18181b] bg-[#fcfbf9] shadow-2xl animate-in slide-in-from-left duration-250">
+            <div className="flex items-center justify-between border-b-2 border-[#18181b] p-4 bg-[#eceae1]">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2 font-mono">
-                  <Sparkles className="size-4 text-indigo-400" />
+                <h3 className="text-sm font-bold text-[#18181b] flex items-center gap-2 font-mono">
+                  <Sparkles className="size-4 text-[#2724d1]" />
                   Select A Trial Wireframe
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-[#52525b] mt-0.5">
                   Pick a napkin sketch to load and compile
                 </p>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="flex size-7 items-center justify-center rounded-lg border border-[#2b3044] text-gray-400 hover:text-white"
+                className="flex size-7 items-center justify-center rounded-lg border border-[#18181b] text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
               >
                 <X className="size-4" />
               </button>
@@ -716,26 +771,26 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
                 <div
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset)}
-                  className="group relative cursor-pointer overflow-hidden rounded-xl border-2 border-[#2b3044] bg-[#131520] p-4 transition-all hover:border-indigo-500 hover:bg-[#1a1d2e] hover:shadow-xl"
+                  className="group relative cursor-pointer overflow-hidden rounded-xl border-2 border-[#18181b] bg-white p-4 transition-all hover:bg-blue-50/40 hover:shadow-md"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-bold">
+                    <span className="text-[11px] font-mono text-[#2724d1] uppercase tracking-wider font-bold">
                       {preset.category}
                     </span>
-                    <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-indigo-300 border border-indigo-500/30">
+                    <span className="rounded-full bg-blue-100/70 px-2 py-0.5 text-[10px] font-mono font-bold text-[#2724d1] border border-blue-300">
                       {preset.badge}
                     </span>
                   </div>
 
-                  <h4 className="mt-1.5 text-sm font-bold text-white group-hover:text-indigo-300 transition-colors font-mono">
+                  <h4 className="mt-1.5 text-sm font-bold text-[#18181b] group-hover:text-[#2724d1] transition-colors font-mono">
                     {preset.title}
                   </h4>
 
-                  <p className="mt-1 text-xs text-gray-400 leading-relaxed">
+                  <p className="mt-1 text-xs text-[#52525b] leading-relaxed">
                     {preset.description}
                   </p>
 
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#232738] text-[11px] text-gray-500 group-hover:text-indigo-400 font-mono font-medium">
+                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#18181b]/20 text-[11px] text-[#71717a] group-hover:text-[#2724d1] font-mono font-medium">
                     <span>Click to load onto board</span>
                     <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-1" />
                   </div>
@@ -743,8 +798,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               ))}
             </div>
 
-            <div className="border-t-2 border-[#232738] bg-[#131520] p-3 text-center">
-              <span className="text-xs text-gray-400 font-mono">
+            <div className="border-t-2 border-[#18181b] bg-[#eceae1] p-3 text-center">
+              <span className="text-xs text-[#52525b] font-mono font-medium">
                 ✏️ Draw freely or annotate over any preset!
               </span>
             </div>

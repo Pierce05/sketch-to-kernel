@@ -1,57 +1,113 @@
 @import "tailwindcss";
+@import "drawably/style.css";
 
-@layer base {
-  :root {
-    --bg-base: #090a0f;
-    --bg-panel: #11131b;
-    --bg-surface: #171a26;
-    --border-subtle: #232738;
-    --border-accent: #3b4259;
-    --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
-    --accent-glow: #6366f1;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  body {
-    background-color: var(--bg-base);
-    color: var(--text-main);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    overflow-x: hidden;
-  }
+@font-face {
+  font-family: "Drawably Pen";
+  src: url("/fonts/DrawablyPen.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
 }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #2b3044;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3f4664;
+:root {
+  /* Authentic Drawably Sketchbook Paper Palette */
+  --paper: #f6f5f0;
+  --paper-elevated: #ffffff;
+  --paper-darker: #eceae1;
+  --paper-card: #fdfdfb;
+  --paper-ruled: rgba(39, 36, 209, 0.08);
+
+  /* Pen & Ink Tones */
+  --ink-primary: #18181b;
+  --ink-secondary: #52525b;
+  --ink-muted: #71717a;
+  --ink-blue: #2724d1;
+  --ink-red: #d12724;
+  --ink-green: #188a42;
+  --ink-graphite: #3f3f46;
+
+  /* Highlighter Washes */
+  --wash-yellow: #fef08a;
+  --wash-blue: #bfdbfe;
+  --wash-pink: #fbcfe8;
+  --wash-green: #bbf7d0;
+
+  /* Drawably Overrides */
+  --drawably-paper: var(--paper-card);
+  --drawably-stroke: var(--ink-blue);
+  --drawably-ink: var(--ink-primary);
+  --drawably-width: 2px;
 }
 
-/* Dot grid background pattern */
-.bg-grid-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Handwritten Sketch Font */
+.font-pen {
+  font-family: "Drawably Pen", ui-monospace, cursive, monospace;
+}
+
+/* Notebook Graph Paper / Sketchbook Grid */
+.bg-sketchbook-grid {
+  background-color: var(--paper);
+  background-image: 
+    linear-gradient(to right, rgba(39, 36, 209, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(39, 36, 209, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-.bg-dot-matrix {
-  background-image: radial-gradient(rgba(99, 102, 241, 0.15) 1.2px, transparent 1.2px);
+/* Notebook Ruled Paper with Margin */
+.bg-sketchbook-ruled {
+  background-color: var(--paper);
+  background-image: 
+    linear-gradient(to bottom, rgba(39, 36, 209, 0.08) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+
+/* Dot Grid for Blueprint / Drafting Area */
+.bg-sketchbook-dots {
+  background-image: radial-gradient(rgba(39, 36, 209, 0.15) 1.2px, transparent 1.2px);
   background-size: 20px 20px;
 }
 
-/* Smooth drawing canvas touch-action */
+/* Highlighter Pen Sweep */
+.highlight-yellow {
+  background: linear-gradient(104deg, rgba(254, 240, 138, 0) 0.9%, rgba(254, 240, 138, 0.85) 2.4%, rgba(254, 240, 138, 0.75) 96.5%, rgba(254, 240, 138, 0) 98.6%);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.highlight-blue {
+  background: linear-gradient(104deg, rgba(191, 219, 254, 0) 0.9%, rgba(191, 219, 254, 0.85) 2.4%, rgba(191, 219, 254, 0.75) 96.5%, rgba(191, 219, 254, 0) 98.6%);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* Custom Scrollbar styled as pencil lead */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--paper-darker);
+}
+::-webkit-scrollbar-thumb {
+  background: #a1a1aa;
+  border-radius: 9999px;
+  border: 1px solid var(--paper-darker);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
+/* Smooth canvas touch */
 .touch-none-canvas {
   touch-action: none;
 }

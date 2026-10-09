@@ -5,15 +5,15 @@ import { usePathname } from "next/navigation";
 import { ApiKeyMode } from "@/lib/types";
 import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
+import { SketchButton, SketchCard, SketchBadge } from "@/components/sketch-ui";
 import {
-  Sparkles,
   KeyRound,
   Check,
   Eye,
   EyeOff,
-  Layers,
   ArrowLeft,
   X,
+  PenTool,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -53,7 +53,7 @@ export function Navbar({
 
   const handleCloseModal = () => {
     setShowKeyModal(false);
-    // If closing without a saved custom key, revert to previous key mode
+    // If closing without a saved custom key, revert cleanly to previous key mode
     if (!customApiKey) {
       onApiKeyModeChange(previousMode === "custom" ? "default_1" : previousMode);
     }
@@ -81,35 +81,39 @@ export function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b-2 border-[#2b3044] bg-[#0c0e15]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b-2 border-[#18181b] bg-[#f6f5f0]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3">
           {pathname === "/playground" && (
             <button
               onClick={(e) => handleNavClick(e, "/")}
-              className="group flex size-9 items-center justify-center rounded-xl border-2 border-[#2b3044] bg-[#131520] text-gray-300 transition-colors hover:border-indigo-500 hover:text-white"
+              className="group flex size-9 items-center justify-center rounded-lg border-2 border-[#18181b] bg-white text-[#18181b] transition-all hover:-translate-x-0.5 hover:shadow-sm"
               title="Return to Sketchbook Home"
               aria-label="Back to home"
             >
-              <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft className="size-4" />
             </button>
           )}
 
           <a
             href="/"
             onClick={(e) => handleNavClick(e, "/")}
-            className="flex items-center gap-2.5 font-semibold text-white transition-opacity hover:opacity-90"
+            className="flex items-center gap-2.5 text-[#18181b] transition-opacity hover:opacity-90"
           >
-            <div className="flex size-9 items-center justify-center rounded-xl border-2 border-indigo-400 bg-indigo-950/80 shadow-md shadow-indigo-500/20">
-              <Layers className="size-5 text-indigo-300" />
+            <div className="flex size-9 items-center justify-center rounded-lg border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] shadow-xs">
+              <PenTool className="size-4.5 stroke-[2.5]" />
             </div>
             <div className="flex flex-col">
-              <span className="flex items-center gap-1.5 text-base font-bold font-mono tracking-tight">
-                Sketch<span className="text-indigo-400">ToKernel</span>
-                <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-indigo-300 border border-indigo-500/40">
-                  Gemma 4
-                </span>
+              <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold font-mono tracking-tight text-[#18181b]">
+                Sketch<span className="text-[#2724d1]">ToKernel</span>
+                <SketchBadge
+                  stroke="#2724d1"
+                  fill="rgba(39, 36, 209, 0.08)"
+                  className="hidden sm:inline-flex text-[10px] text-[#2724d1] font-bold"
+                >
+                  Gemma 4 31B
+                </SketchBadge>
               </span>
             </div>
           </a>
@@ -118,14 +122,14 @@ export function Navbar({
         {/* Right Section: API Key Selector & GitHub */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* API Key Mode Selector */}
-          <div className="flex items-center rounded-xl border-2 border-[#2b3044] bg-[#131520] p-1 shadow-inner">
+          <div className="flex items-center rounded-xl border-2 border-[#18181b] bg-white p-1 shadow-xs">
             <button
               type="button"
               onClick={() => handleModeSelect("default_1")}
               className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "default_1"
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? "bg-[#2724d1] text-white shadow-xs"
+                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
               }`}
               title="Default Team Key 1 (Gemma 4 31B)"
             >
@@ -137,8 +141,8 @@ export function Navbar({
               onClick={() => handleModeSelect("default_2")}
               className={`rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "default_2"
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? "bg-[#2724d1] text-white shadow-xs"
+                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
               }`}
               title="Default Team Key 2 (Fallback)"
             >
@@ -150,14 +154,14 @@ export function Navbar({
               onClick={() => handleModeSelect("custom")}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-mono font-bold transition-all ${
                 apiKeyMode === "custom"
-                  ? "bg-purple-600 text-white shadow"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? "bg-[#7c3aed] text-white shadow-xs"
+                  : "text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
               }`}
               title="Custom Gemini API Key"
             >
               <KeyRound className="size-3" />
               <span>Custom</span>
-              {customApiKey && <span className="size-1.5 rounded-full bg-emerald-400" />}
+              {customApiKey && <span className="size-1.5 rounded-full bg-emerald-500" />}
             </button>
           </div>
 
@@ -166,7 +170,7 @@ export function Navbar({
             href="https://github.com/Pierce05/sketch-to-kernel"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-xl border-2 border-[#2b3044] bg-[#131520] px-3 py-1.5 text-xs font-mono font-bold text-gray-300 transition-colors hover:border-indigo-500 hover:text-white"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-[#18181b] bg-white px-3 py-1.5 text-xs font-mono font-bold text-[#18181b] transition-all hover:bg-[#f5f4ee] hover:shadow-xs"
             aria-label="View on GitHub"
           >
             <svg className="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
@@ -177,78 +181,87 @@ export function Navbar({
         </div>
       </div>
 
-      {/* Custom Key Modal: Reverts cleanly on cancel */}
+      {/* Custom Key Modal: Hand-drawn Napkin Index Card */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border-2 border-[#2b3044] bg-[#0c0e15] p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#232738] pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-purple-950/80 text-purple-400 border border-purple-800/40">
-                  <KeyRound className="size-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md">
+            <SketchCard
+              roughness={1.5}
+              stroke="#18181b"
+              fill="#ffffff"
+              className="p-6 shadow-2xl rounded-2xl"
+            >
+              <div className="flex items-center justify-between border-b-2 border-[#18181b] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg border-2 border-[#7c3aed] bg-purple-50 text-[#7c3aed]">
+                    <KeyRound className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold font-mono text-[#18181b]">Custom Gemini API Key</h3>
+                    <p className="text-xs text-[#52525b]">For Gemma 4 31B compilation calls</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold font-mono text-white">Custom Gemini API Key</h3>
-                  <p className="text-xs text-gray-400">Used for Gemma 4 31B compilation requests</p>
-                </div>
-              </div>
-              <button
-                onClick={handleCloseModal}
-                className="flex size-7 items-center justify-center rounded-lg border border-[#2b3044] text-gray-400 hover:text-white"
-                title="Cancel and restore previous key"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveCustomKey} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-mono font-medium text-gray-300 mb-1.5">
-                  Enter Gemini API Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKeySecret ? "text" : "password"}
-                    value={tempKey}
-                    onChange={(e) => setTempKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    autoFocus
-                    className="w-full rounded-xl border-2 border-[#2b3044] bg-[#131520] px-3.5 py-2.5 pr-10 text-xs font-mono text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeySecret(!showKeySecret)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                  >
-                    {showKeySecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[11px] text-gray-400 font-mono">
-                  Stored in browser <code className="text-indigo-300">localStorage</code>. Never sent to any 3rd party.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
-                  type="button"
                   onClick={handleCloseModal}
-                  className="rounded-xl border border-[#2b3044] bg-[#131520] px-3.5 py-2 text-xs font-mono text-gray-400 hover:text-white transition-colors"
+                  className="flex size-7 items-center justify-center rounded-lg border border-[#18181b] text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
+                  title="Cancel and restore previous key"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-mono font-bold text-white hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/30"
-                >
-                  {isSaved ? (
-                    <>
-                      <Check className="size-3.5 text-emerald-300" /> Saved
-                    </>
-                  ) : (
-                    "Save & Use Key"
-                  )}
+                  <X className="size-4" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveCustomKey} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-mono font-bold text-[#18181b] mb-1.5">
+                    Enter Gemini API Key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showKeySecret ? "text" : "password"}
+                      value={tempKey}
+                      onChange={(e) => setTempKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      autoFocus
+                      className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2.5 pr-10 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#2724d1] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeySecret(!showKeySecret)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-[#18181b]"
+                    >
+                      {showKeySecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-[#71717a] font-mono">
+                    Stored locally in <code className="text-[#2724d1] font-bold">localStorage</code>. Never shared.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <SketchButton
+                    type="button"
+                    variant="secondary"
+                    onClick={handleCloseModal}
+                    className="text-xs py-1.5 px-3.5"
+                  >
+                    Cancel
+                  </SketchButton>
+                  <SketchButton
+                    type="submit"
+                    variant="primary"
+                    className="text-xs py-1.5 px-4"
+                  >
+                    {isSaved ? (
+                      <>
+                        <Check className="size-3.5 text-emerald-300" /> Saved
+                      </>
+                    ) : (
+                      "Save Key"
+                    )}
+                  </SketchButton>
+                </div>
+              </form>
+            </SketchCard>
           </div>
         </div>
       )}
