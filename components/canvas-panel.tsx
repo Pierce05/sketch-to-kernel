@@ -92,6 +92,14 @@ export interface CanvasTextItem {
   color: string;
 }
 
+export interface HistorySnapshot {
+  strokes: CanvasStroke[];
+  shapes: CanvasShape[];
+  stamps: DraggableStamp[];
+  textItems: CanvasTextItem[];
+  canvasImageData?: ImageData;
+}
+
 export type ToolType = "select" | "pen" | "rectangle" | "circle" | "eraser" | "text";
 export type EraserMode = "brush" | "eradicator";
 type ResizeHandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -173,16 +181,22 @@ export function CanvasPanel({
     strokeWidth: number;
   } | null>(null);
 
-  // Snapshots for Undo / Redo
-  const [history, setHistory] = useState<ImageData[]>([]);
-  const [redoStack, setRedoStack] = useState<ImageData[]>([]);
-
   // Draggable stamps palette
   const [stamps, setStamps] = useState<DraggableStamp[]>([]);
   const [selectedStampId, setSelectedStampId] = useState<string | null>(null);
   const [editingStampId, setEditingStampId] = useState<string | null>(null);
   const [isDraggingStamp, setIsDraggingStamp] = useState(false);
+  const [isResizingStamp, setIsResizingStamp] = useState(false);
   const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
+  const activeStampResizeHandle = useRef<ResizeHandleType | null>(null);
+  const stampResizeOrigin = useRef<{
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    initialWidth: number;
+    initialHeight: number;
+  } | null>(null);
 
   // Canvas Text Items
   const [textItems, setTextItems] = useState<CanvasTextItem[]>([]);
@@ -196,6 +210,10 @@ export function CanvasPanel({
     startY: number;
     initialFontSize: number;
   } | null>(null);
+
+  // Comprehensive Multi-Layer Snapshots for Undo / Redo
+  const [history, setHistory] = useState<HistorySnapshot[]>([]);
+  const [redoStack, setRedoStack] = useState<HistorySnapshot[]>([]);
 
   // Drawer state for "Try Examples"
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -236,6 +254,33 @@ export function CanvasPanel({
     });
   }, [canvasBgColor]);
 
+  // Capture full multi-layer history snapshot
+  const takeSnapshot = useCallback(
+    (
+      customStrokes?: CanvasStroke[],
+      customShapes?: CanvasShape[],
+      customStamps?: DraggableStamp[],
+      customTextItems?: CanvasTextItem[]
+    ) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      const canvasImageData =
+        canvas && ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : undefined;
+
+      const snapshot: HistorySnapshot = {
+        strokes: JSON.parse(JSON.stringify(customStrokes ?? strokes)),
+        shapes: JSON.parse(JSON.stringify(customShapes ?? shapes)),
+        stamps: JSON.parse(JSON.stringify(customStamps ?? stamps)),
+        textItems: JSON.parse(JSON.stringify(customTextItems ?? textItems)),
+        canvasImageData,
+      };
+
+      setHistory((prev) => [...prev.slice(-30), snapshot]);
+      setRedoStack([]);
+    },
+    [strokes, shapes, stamps, textItems]
+  );
+
   // Setup canvas backing store resolution
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -272,7 +317,15 @@ export function CanvasPanel({
       ctx.fillStyle = canvasBgColor;
       ctx.fillRect(0, 0, rect.width, rect.height);
       const initialSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setHistory([initialSnapshot]);
+      setHistory([
+        {
+          strokes: [],
+          shapes: [],
+          stamps: [],
+          textItems: [],
+          canvasImageData: initialSnapshot,
+        },
+      ]);
     }
   }, [canvasBgColor]);
 
@@ -289,46 +342,66 @@ export function CanvasPanel({
     return () => resizeObserver.disconnect();
   }, [setupCanvas]);
 
-  const saveHistorySnapshot = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    setHistory((prev) => [...prev.slice(-20), snapshot]);
-    setRedoStack([]);
-  }, []);
-
+  // Full multi-layer Undo
   const undo = useCallback(() => {
     if (history.length <= 1) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
     const current = history[history.length - 1];
     const previous = history[history.length - 2];
 
     setRedoStack((prev) => [...prev, current]);
     setHistory((prev) => prev.slice(0, -1));
 
-    ctx.putImageData(previous, 0, 0);
-  }, [history]);
+    // Restore multi-layer state
+    setStrokes(previous.strokes);
+    setShapes(previous.shapes);
+    setStamps(previous.stamps);
+    setTextItems(previous.textItems);
+    setSelectedShapeId(null);
+    setSelectedStampId(null);
+    setSelectedTextId(null);
 
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        if (previous.canvasImageData) {
+          ctx.putImageData(previous.canvasImageData, 0, 0);
+        } else {
+          redrawAllStrokes(previous.strokes);
+        }
+      }
+    }
+  }, [history, redrawAllStrokes]);
+
+  // Full multi-layer Redo
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
     const next = redoStack[redoStack.length - 1];
+
     setRedoStack((prev) => prev.slice(0, -1));
     setHistory((prev) => [...prev, next]);
 
-    ctx.putImageData(next, 0, 0);
-  }, [redoStack]);
+    // Restore multi-layer state
+    setStrokes(next.strokes);
+    setShapes(next.shapes);
+    setStamps(next.stamps);
+    setTextItems(next.textItems);
+    setSelectedShapeId(null);
+    setSelectedStampId(null);
+    setSelectedTextId(null);
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        if (next.canvasImageData) {
+          ctx.putImageData(next.canvasImageData, 0, 0);
+        } else {
+          redrawAllStrokes(next.strokes);
+        }
+      }
+    }
+  }, [redoStack, redrawAllStrokes]);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -348,7 +421,7 @@ export function CanvasPanel({
     setSelectedTextId(null);
     setSelectedPreset(null);
     setHasDrawn(false);
-    saveHistorySnapshot();
+    takeSnapshot([], [], [], []);
   };
 
   // Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, V, P, R, C, T, E, Delete)
@@ -404,14 +477,20 @@ export function CanvasPanel({
           setActiveTool("eraser");
         } else if (e.key === "Delete" || e.key === "Backspace") {
           if (selectedShapeId) {
-            setShapes((prev) => prev.filter((s) => s.id !== selectedShapeId));
+            const nextShapes = shapes.filter((s) => s.id !== selectedShapeId);
+            setShapes(nextShapes);
             setSelectedShapeId(null);
+            takeSnapshot(strokes, nextShapes, stamps, textItems);
           } else if (selectedStampId) {
-            setStamps((prev) => prev.filter((s) => s.id !== selectedStampId));
+            const nextStamps = stamps.filter((s) => s.id !== selectedStampId);
+            setStamps(nextStamps);
             setSelectedStampId(null);
+            takeSnapshot(strokes, shapes, nextStamps, textItems);
           } else if (selectedTextId) {
-            setTextItems((prev) => prev.filter((t) => t.id !== selectedTextId));
+            const nextTexts = textItems.filter((t) => t.id !== selectedTextId);
+            setTextItems(nextTexts);
             setSelectedTextId(null);
+            takeSnapshot(strokes, shapes, stamps, nextTexts);
           }
         }
       }
@@ -419,7 +498,18 @@ export function CanvasPanel({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo, selectedShapeId, selectedStampId, selectedTextId]);
+  }, [
+    undo,
+    redo,
+    selectedShapeId,
+    selectedStampId,
+    selectedTextId,
+    shapes,
+    stamps,
+    textItems,
+    strokes,
+    takeSnapshot,
+  ]);
 
   const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement | HTMLDivElement>): Point => {
     const canvas = canvasRef.current;
@@ -460,12 +550,10 @@ export function CanvasPanel({
     });
 
     if (closestId) {
-      setStrokes((prev) => {
-        const remaining = prev.filter((s) => s.id !== closestId);
-        redrawAllStrokes(remaining);
-        return remaining;
-      });
-      saveHistorySnapshot();
+      const remaining = strokes.filter((s) => s.id !== closestId);
+      setStrokes(remaining);
+      redrawAllStrokes(remaining);
+      takeSnapshot(remaining, shapes, stamps, textItems);
     }
   };
 
@@ -499,12 +587,14 @@ export function CanvasPanel({
         fontSize: 18,
         color: penColor,
       };
-      setTextItems((prev) => [...prev, newText]);
+      const nextTexts = [...textItems, newText];
+      setTextItems(nextTexts);
       setSelectedTextId(newText.id);
       setSelectedShapeId(null);
       setSelectedStampId(null);
       setActiveTool("select"); // Auto-shift to select mode
       setHasDrawn(true);
+      takeSnapshot(strokes, shapes, stamps, nextTexts);
       return;
     }
 
@@ -646,13 +736,14 @@ export function CanvasPanel({
           color: penColor,
           strokeWidth,
         };
-        setShapes((prev) => [...prev, newShape]);
+        const nextShapes = [...shapes, newShape];
+        setShapes(nextShapes);
         setSelectedShapeId(newShape.id);
         setSelectedStampId(null);
         setSelectedTextId(null);
         setHasDrawn(true);
-        // Automatic shift to select mode after creating shape:
-        setActiveTool("select");
+        setActiveTool("select"); // Automatic shift to select mode
+        takeSnapshot(strokes, nextShapes, stamps, textItems);
       }
 
       shapeCreationOrigin.current = null;
@@ -670,20 +761,21 @@ export function CanvasPanel({
         color: penColor,
         width: strokeWidth,
       };
-      setStrokes((prev) => [...prev, newStroke]);
+      const nextStrokes = [...strokes, newStroke];
+      setStrokes(nextStrokes);
       currentStrokePoints.current = [];
+      takeSnapshot(nextStrokes, shapes, stamps, textItems);
     }
 
     setIsDrawing(false);
     lastPointRef.current = null;
-    saveHistorySnapshot();
   };
 
   // Stamp library addition
   const addStamp = (type: DraggableStamp["type"]) => {
     const id = `stamp-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
     let width = 130;
-    let height = 40;
+    let height = 42;
     let label = "Button";
 
     switch (type) {
@@ -744,15 +836,17 @@ export function CanvasPanel({
       label,
     };
 
-    setStamps((prev) => [...prev, newStamp]);
+    const nextStamps = [...stamps, newStamp];
+    setStamps(nextStamps);
     setSelectedStampId(newStamp.id);
     setSelectedShapeId(null);
     setSelectedTextId(null);
     setActiveTool("select"); // Auto-shift to select mode
     setHasDrawn(true);
+    takeSnapshot(strokes, shapes, nextStamps, textItems);
   };
 
-  // Shape Resize Logic
+  // Shape Resize Pointer Down
   const handleShapeResizePointerDown = (
     e: React.PointerEvent,
     shape: CanvasShape,
@@ -771,8 +865,33 @@ export function CanvasPanel({
     };
   };
 
+  // Stamp Resize Pointer Down
+  const handleStampResizePointerDown = (
+    e: React.PointerEvent,
+    stamp: DraggableStamp,
+    handle: ResizeHandleType
+  ) => {
+    e.stopPropagation();
+    setIsResizingStamp(true);
+    activeStampResizeHandle.current = handle;
+    stampResizeOrigin.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: stamp.x,
+      initialY: stamp.y,
+      initialWidth: stamp.width,
+      initialHeight: stamp.height,
+    };
+  };
+
   const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isResizingShape && selectedShapeId && shapeResizeOrigin.current && activeResizeHandle.current) {
+    // 1. Resizing Shape
+    if (
+      isResizingShape &&
+      selectedShapeId &&
+      shapeResizeOrigin.current &&
+      activeResizeHandle.current
+    ) {
       const handle = activeResizeHandle.current;
       const origin = shapeResizeOrigin.current;
       const dx = e.clientX - origin.startX;
@@ -810,6 +929,7 @@ export function CanvasPanel({
       return;
     }
 
+    // 2. Dragging Shape
     if (isDraggingShape && selectedShapeId) {
       const containerRect = containerRef.current?.getBoundingClientRect();
       if (!containerRect) return;
@@ -819,17 +939,134 @@ export function CanvasPanel({
       setShapes((prev) =>
         prev.map((s) => (s.id === selectedShapeId ? { ...s, x: newX, y: newY } : s))
       );
+      return;
+    }
+
+    // 3. Resizing Stamp
+    if (
+      isResizingStamp &&
+      selectedStampId &&
+      stampResizeOrigin.current &&
+      activeStampResizeHandle.current
+    ) {
+      const handle = activeStampResizeHandle.current;
+      const origin = stampResizeOrigin.current;
+      const dx = e.clientX - origin.startX;
+      const dy = e.clientY - origin.startY;
+
+      let newX = origin.initialX;
+      let newY = origin.initialY;
+      let newW = origin.initialWidth;
+      let newH = origin.initialHeight;
+
+      if (handle.includes("e")) newW = Math.max(40, origin.initialWidth + dx);
+      if (handle.includes("s")) newH = Math.max(24, origin.initialHeight + dy);
+      if (handle.includes("w")) {
+        const potentialW = origin.initialWidth - dx;
+        if (potentialW >= 40) {
+          newW = potentialW;
+          newX = origin.initialX + dx;
+        }
+      }
+      if (handle.includes("n")) {
+        const potentialH = origin.initialHeight - dy;
+        if (potentialH >= 24) {
+          newH = potentialH;
+          newY = origin.initialY + dy;
+        }
+      }
+
+      setStamps((prev) =>
+        prev.map((s) =>
+          s.id === selectedStampId
+            ? { ...s, x: newX, y: newY, width: newW, height: newH }
+            : s
+        )
+      );
+      return;
+    }
+
+    // 4. Dragging Stamp
+    if (isDraggingStamp && selectedStampId) {
+      setStamps((prev) =>
+        prev.map((s) =>
+          s.id === selectedStampId
+            ? {
+                ...s,
+                x: Math.max(0, e.clientX - dragOffset.x),
+                y: Math.max(0, e.clientY - dragOffset.y),
+              }
+            : s
+        )
+      );
+      return;
+    }
+
+    // 5. Dragging Text
+    if (isDraggingText && selectedTextId) {
+      setTextItems((prev) =>
+        prev.map((t) =>
+          t.id === selectedTextId
+            ? {
+                ...t,
+                x: Math.max(0, e.clientX - textDragOffset.x),
+                y: Math.max(0, e.clientY - textDragOffset.y),
+              }
+            : t
+        )
+      );
+      return;
+    }
+
+    // 6. Resizing Text
+    if (isResizingText && selectedTextId && textResizeStart.current) {
+      const delta =
+        e.clientX - textResizeStart.current.startX + (e.clientY - textResizeStart.current.startY);
+      const newSize = Math.max(
+        12,
+        Math.min(96, Math.round(textResizeStart.current.initialFontSize + delta * 0.35))
+      );
+      setTextItems((prev) =>
+        prev.map((t) => (t.id === selectedTextId ? { ...t, fontSize: newSize } : t))
+      );
     }
   };
 
   const handleContainerPointerUp = () => {
+    let shouldSnapshot = false;
+
     if (isResizingShape) {
       setIsResizingShape(false);
       activeResizeHandle.current = null;
       shapeResizeOrigin.current = null;
+      shouldSnapshot = true;
     }
     if (isDraggingShape) {
       setIsDraggingShape(false);
+      shouldSnapshot = true;
+    }
+    if (isResizingStamp) {
+      setIsResizingStamp(false);
+      activeStampResizeHandle.current = null;
+      stampResizeOrigin.current = null;
+      shouldSnapshot = true;
+    }
+    if (isDraggingStamp) {
+      setIsDraggingStamp(false);
+      shouldSnapshot = true;
+    }
+    if (isDraggingText) {
+      setIsDraggingText(false);
+      shouldSnapshot = true;
+    }
+    if (isResizingText) {
+      setIsResizingText(false);
+      textResizeStart.current = null;
+      shouldSnapshot = true;
+    }
+
+    if (shouldSnapshot) {
+      takeSnapshot();
     }
   };
 
@@ -861,7 +1098,7 @@ export function CanvasPanel({
         ctx.fillRect(0, 0, rect.width, rect.height);
         ctx.drawImage(img, x, y, w, h);
         setHasDrawn(true);
-        saveHistorySnapshot();
+        takeSnapshot(strokes, shapes, stamps, textItems);
       };
       img.src = event.target?.result as string;
     };
@@ -914,7 +1151,7 @@ export function CanvasPanel({
     setStamps([]);
     setShapes([]);
     setTextItems([]);
-    saveHistorySnapshot();
+    takeSnapshot([], [], [], []);
   };
 
   // Export crisp composite canvas image including drawn shapes, stamps, and text
@@ -1067,7 +1304,7 @@ export function CanvasPanel({
               active={activeTool === "select"}
               onClick={() => setActiveTool("select")}
               className="px-2 sm:px-2.5 py-1"
-              title="Select tool (V or Ctrl+S): drag, resize shapes & text"
+              title="Select tool (V or Ctrl+S): click to drag, move, or resize shapes, stamps & text"
             >
               <MousePointer className="size-3.5" />
               <span className="hidden md:inline font-bold">Select</span>
@@ -1076,7 +1313,12 @@ export function CanvasPanel({
             {/* Mode: Pen */}
             <SketchOptionButton
               active={activeTool === "pen"}
-              onClick={() => setActiveTool("pen")}
+              onClick={() => {
+                setActiveTool("pen");
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+              }}
               className="px-2 sm:px-2.5 py-1"
               title="Freehand pen (P)"
             >
@@ -1087,9 +1329,14 @@ export function CanvasPanel({
             {/* Shape: Rectangle */}
             <SketchOptionButton
               active={activeTool === "rectangle"}
-              onClick={() => setActiveTool("rectangle")}
+              onClick={() => {
+                setActiveTool("rectangle");
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+              }}
               className="px-2 sm:px-2.5 py-1"
-              title="Rectangle shape tool (R): click & drag, auto-shifts to select"
+              title="Rectangle shape tool (R): drag to draw, auto-shifts to select"
             >
               <Square className="size-3.5" />
               <span className="hidden md:inline">Rect</span>
@@ -1098,9 +1345,14 @@ export function CanvasPanel({
             {/* Shape: Circle */}
             <SketchOptionButton
               active={activeTool === "circle"}
-              onClick={() => setActiveTool("circle")}
+              onClick={() => {
+                setActiveTool("circle");
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+              }}
               className="px-2 sm:px-2.5 py-1"
-              title="Circle shape tool (C): click & drag, auto-shifts to select"
+              title="Circle shape tool (C): drag to draw, auto-shifts to select"
             >
               <Circle className="size-3.5" />
               <span className="hidden md:inline">Circle</span>
@@ -1109,7 +1361,12 @@ export function CanvasPanel({
             {/* Text Tool */}
             <SketchOptionButton
               active={activeTool === "text"}
-              onClick={() => setActiveTool("text")}
+              onClick={() => {
+                setActiveTool("text");
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+              }}
               className="px-2 sm:px-2.5 py-1"
               title="Draggable scalable text tool (T)"
             >
@@ -1120,7 +1377,12 @@ export function CanvasPanel({
             {/* Eraser */}
             <SketchOptionButton
               active={activeTool === "eraser"}
-              onClick={() => setActiveTool("eraser")}
+              onClick={() => {
+                setActiveTool("eraser");
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+              }}
               className="px-2 sm:px-2.5 py-1"
               title="Eraser tool (E)"
             >
@@ -1260,7 +1522,7 @@ export function CanvasPanel({
       {/* Expanded Pre-Made Components / Stamp Bar */}
       <div className="flex items-center gap-2 border-b border-[#18181b] bg-[#faf9f5] px-3 sm:px-4 py-1.5 text-xs overflow-x-auto">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold whitespace-nowrap mr-1">
-          Stamps (Double-Click To Rename):
+          Stamps (Double-Click To Rename, Select To Resize):
         </span>
         <button
           onClick={() => addStamp("button")}
@@ -1377,6 +1639,7 @@ export function CanvasPanel({
             <div
               key={shape.id}
               onPointerDown={(e) => {
+                if (activeTool !== "select") return; // Only allow selecting/dragging in select mode
                 e.stopPropagation();
                 setSelectedShapeId(shape.id);
                 setSelectedStampId(null);
@@ -1398,25 +1661,33 @@ export function CanvasPanel({
                 borderColor: shape.color,
                 borderWidth: `${shape.strokeWidth}px`,
               }}
-              className={`absolute cursor-move select-none transition-shadow ${
+              className={`absolute select-none transition-shadow ${
                 shape.type === "circle" ? "rounded-full" : "rounded-md"
+              } ${
+                activeTool === "select"
+                  ? "pointer-events-auto cursor-move"
+                  : "pointer-events-none"
               } ${
                 isSelected
                   ? "ring-2 ring-[#2724d1] ring-offset-2 ring-offset-white shadow-lg"
-                  : "hover:ring-1 hover:ring-[#2724d1]/50"
+                  : activeTool === "select"
+                  ? "hover:ring-1 hover:ring-[#2724d1]/50"
+                  : ""
               }`}
             >
               {/* Selection Border & 8 Resize Handles */}
-              {isSelected && (
+              {isSelected && activeTool === "select" && (
                 <>
                   {/* Delete button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShapes((prev) => prev.filter((s) => s.id !== shape.id));
+                      const nextShapes = shapes.filter((s) => s.id !== shape.id);
+                      setShapes(nextShapes);
                       setSelectedShapeId(null);
+                      takeSnapshot(strokes, nextShapes, stamps, textItems);
                     }}
-                    className="absolute -top-3 -right-3 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-[10px] text-white hover:bg-red-700 shadow-sm"
+                    className="absolute -top-3 -right-3 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-[10px] text-white hover:bg-red-700 shadow-sm pointer-events-auto"
                     title="Delete shape"
                   >
                     ✕
@@ -1425,35 +1696,35 @@ export function CanvasPanel({
                   {/* 8 Resize Handles: NW, N, NE, E, SE, S, SW, W */}
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "nw")}
-                    className="absolute -top-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs"
+                    className="absolute -top-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "n")}
-                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs"
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "ne")}
-                    className="absolute -top-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs"
+                    className="absolute -top-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "e")}
-                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs"
+                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "se")}
-                    className="absolute -bottom-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs"
+                    className="absolute -bottom-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "s")}
-                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs"
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "sw")}
-                    className="absolute -bottom-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs"
+                    className="absolute -bottom-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs pointer-events-auto"
                   />
                   <div
                     onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "w")}
-                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs"
+                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs pointer-events-auto"
                   />
                 </>
               )}
@@ -1461,208 +1732,228 @@ export function CanvasPanel({
           );
         })}
 
-        {/* Interactive Draggable Stamps with Double Click Rename */}
-        {stamps.map((stamp) => (
-          <div
-            key={stamp.id}
-            onPointerDown={(e) => {
-              if (editingStampId === stamp.id) return;
-              e.stopPropagation();
-              setSelectedStampId(stamp.id);
-              setSelectedShapeId(null);
-              setSelectedTextId(null);
-              setIsDraggingStamp(true);
-              setDragOffset({ x: e.clientX - stamp.x, y: e.clientY - stamp.y });
-            }}
-            onPointerMove={(e) => {
-              if (isDraggingStamp && selectedStampId === stamp.id) {
+        {/* Interactive Draggable & Resizable Stamps Layer */}
+        {stamps.map((stamp) => {
+          const isSelected = selectedStampId === stamp.id;
+          return (
+            <div
+              key={stamp.id}
+              onPointerDown={(e) => {
+                if (activeTool !== "select" || editingStampId === stamp.id) return;
                 e.stopPropagation();
-                setStamps((prev) =>
-                  prev.map((s) =>
-                    s.id === stamp.id
-                      ? {
-                          ...s,
-                          x: Math.max(0, e.clientX - dragOffset.x),
-                          y: Math.max(0, e.clientY - dragOffset.y),
-                        }
-                      : s
-                  )
-                );
-              }
-            }}
-            onPointerUp={() => setIsDraggingStamp(false)}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditingStampId(stamp.id);
-            }}
-            style={{
-              left: `${stamp.x}px`,
-              top: `${stamp.y}px`,
-              width: `${stamp.width}px`,
-              height: `${stamp.height}px`,
-            }}
-            className={`absolute flex items-center justify-center rounded-xl border-2 border-dashed border-[#2724d1] bg-blue-50/85 font-mono text-xs text-[#18181b] cursor-move shadow-md select-none transition-shadow ${
-              selectedStampId === stamp.id ? "ring-2 ring-[#2724d1] shadow-lg" : ""
-            }`}
-          >
-            {editingStampId === stamp.id ? (
-              <input
-                type="text"
-                autoFocus
-                defaultValue={stamp.label}
-                onBlur={(e) => {
-                  const val = e.target.value.trim() || stamp.label;
-                  setStamps((prev) =>
-                    prev.map((s) => (s.id === stamp.id ? { ...s, label: val } : s))
-                  );
-                  setEditingStampId(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                className="w-[90%] bg-white px-1.5 py-0.5 rounded border border-[#2724d1] text-xs font-mono font-bold text-[#18181b] focus:outline-none"
-              />
-            ) : (
-              <span className="font-bold px-2 truncate pointer-events-none">{stamp.label}</span>
-            )}
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setStamps((prev) => prev.filter((s) => s.id !== stamp.id));
+                setSelectedStampId(stamp.id);
+                setSelectedShapeId(null);
+                setSelectedTextId(null);
+                setIsDraggingStamp(true);
+                setDragOffset({ x: e.clientX - stamp.x, y: e.clientY - stamp.y });
               }}
-              className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-xs text-white hover:bg-red-700 shadow-xs"
-              title="Remove stamp"
+              onDoubleClick={(e) => {
+                if (activeTool !== "select") return;
+                e.stopPropagation();
+                setEditingStampId(stamp.id);
+              }}
+              style={{
+                left: `${stamp.x}px`,
+                top: `${stamp.y}px`,
+                width: `${stamp.width}px`,
+                height: `${stamp.height}px`,
+              }}
+              className={`absolute flex items-center justify-center rounded-xl border-2 border-dashed border-[#2724d1] bg-blue-50/85 font-mono text-xs text-[#18181b] select-none transition-shadow ${
+                activeTool === "select"
+                  ? "pointer-events-auto cursor-move shadow-md"
+                  : "pointer-events-none"
+              } ${
+                isSelected && activeTool === "select"
+                  ? "ring-2 ring-[#2724d1] shadow-lg"
+                  : ""
+              }`}
             >
-              ✕
-            </button>
-          </div>
-        ))}
+              {editingStampId === stamp.id ? (
+                <input
+                  type="text"
+                  autoFocus
+                  defaultValue={stamp.label}
+                  onBlur={(e) => {
+                    const val = e.target.value.trim() || stamp.label;
+                    const nextStamps = stamps.map((s) =>
+                      s.id === stamp.id ? { ...s, label: val } : s
+                    );
+                    setStamps(nextStamps);
+                    setEditingStampId(null);
+                    takeSnapshot(strokes, shapes, nextStamps, textItems);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="w-[90%] bg-white px-1.5 py-0.5 rounded border border-[#2724d1] text-xs font-mono font-bold text-[#18181b] focus:outline-none pointer-events-auto"
+                />
+              ) : (
+                <span className="font-bold px-2 truncate pointer-events-none">{stamp.label}</span>
+              )}
+
+              {/* Stamp Controls when selected in select mode */}
+              {isSelected && activeTool === "select" && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const nextStamps = stamps.filter((s) => s.id !== stamp.id);
+                      setStamps(nextStamps);
+                      setSelectedStampId(null);
+                      takeSnapshot(strokes, shapes, nextStamps, textItems);
+                    }}
+                    className="absolute -top-2.5 -right-2.5 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-xs text-white hover:bg-red-700 shadow-xs pointer-events-auto"
+                    title="Remove stamp"
+                  >
+                    ✕
+                  </button>
+
+                  {/* Stamp 8 Resize Handles */}
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "nw")}
+                    className="absolute -top-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "n")}
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "ne")}
+                    className="absolute -top-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "e")}
+                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "se")}
+                    className="absolute -bottom-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "s")}
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "sw")}
+                    className="absolute -bottom-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs pointer-events-auto"
+                  />
+                  <div
+                    onPointerDown={(e) => handleStampResizePointerDown(e, stamp, "w")}
+                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs pointer-events-auto"
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
 
         {/* Scalable Draggable Canvas Text Items */}
-        {textItems.map((item) => (
-          <div
-            key={item.id}
-            onPointerDown={(e) => {
-              if (editingTextId === item.id) return;
-              e.stopPropagation();
-              setSelectedTextId(item.id);
-              setSelectedShapeId(null);
-              setSelectedStampId(null);
-              setIsDraggingText(true);
-              setTextDragOffset({ x: e.clientX - item.x, y: e.clientY - item.y });
-            }}
-            onPointerMove={(e) => {
-              if (isDraggingText && selectedTextId === item.id) {
+        {textItems.map((item) => {
+          const isSelected = selectedTextId === item.id;
+          return (
+            <div
+              key={item.id}
+              onPointerDown={(e) => {
+                if (activeTool !== "select" || editingTextId === item.id) return;
                 e.stopPropagation();
-                setTextItems((prev) =>
-                  prev.map((t) =>
-                    t.id === item.id
-                      ? {
-                          ...t,
-                          x: Math.max(0, e.clientX - textDragOffset.x),
-                          y: Math.max(0, e.clientY - textDragOffset.y),
-                        }
-                      : t
-                  )
-                );
-              } else if (isResizingText && selectedTextId === item.id && textResizeStart.current) {
+                setSelectedTextId(item.id);
+                setSelectedShapeId(null);
+                setSelectedStampId(null);
+                setIsDraggingText(true);
+                setTextDragOffset({ x: e.clientX - item.x, y: e.clientY - item.y });
+              }}
+              onDoubleClick={(e) => {
+                if (activeTool !== "select") return;
                 e.stopPropagation();
-                const delta =
-                  e.clientX - textResizeStart.current.startX + (e.clientY - textResizeStart.current.startY);
-                const newSize = Math.max(
-                  12,
-                  Math.min(96, Math.round(textResizeStart.current.initialFontSize + delta * 0.35))
-                );
-                setTextItems((prev) =>
-                  prev.map((t) => (t.id === item.id ? { ...t, fontSize: newSize } : t))
-                );
-              }
-            }}
-            onPointerUp={() => {
-              setIsDraggingText(false);
-              setIsResizingText(false);
-              textResizeStart.current = null;
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditingTextId(item.id);
-            }}
-            style={{
-              left: `${item.x}px`,
-              top: `${item.y}px`,
-            }}
-            className={`absolute flex items-center p-1.5 rounded-lg font-pen cursor-move select-none group border border-transparent ${
-              selectedTextId === item.id
-                ? "border-dashed border-[#2724d1] bg-blue-50/40"
-                : "hover:border-dashed hover:border-gray-400"
-            }`}
-          >
-            {editingTextId === item.id ? (
-              <input
-                type="text"
-                autoFocus
-                defaultValue={item.text}
-                style={{ fontSize: `${item.fontSize}px`, color: item.color }}
-                onBlur={(e) => {
-                  const val = e.target.value.trim() || item.text;
-                  setTextItems((prev) =>
-                    prev.map((t) => (t.id === item.id ? { ...t, text: val } : t))
-                  );
-                  setEditingTextId(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                className="bg-white px-2 py-0.5 rounded border border-[#2724d1] font-bold focus:outline-none"
-              />
-            ) : (
-              <span
-                style={{ fontSize: `${item.fontSize}px`, color: item.color }}
-                className="font-bold whitespace-nowrap"
-              >
-                {item.text}
-              </span>
-            )}
+                setEditingTextId(item.id);
+              }}
+              style={{
+                left: `${item.x}px`,
+                top: `${item.y}px`,
+              }}
+              className={`absolute flex items-center p-1.5 rounded-lg font-pen select-none group border border-transparent ${
+                activeTool === "select"
+                  ? "pointer-events-auto cursor-move"
+                  : "pointer-events-none"
+              } ${
+                isSelected && activeTool === "select"
+                  ? "border-dashed border-[#2724d1] bg-blue-50/40"
+                  : activeTool === "select"
+                  ? "hover:border-dashed hover:border-gray-400"
+                  : ""
+              }`}
+            >
+              {editingTextId === item.id ? (
+                <input
+                  type="text"
+                  autoFocus
+                  defaultValue={item.text}
+                  style={{ fontSize: `${item.fontSize}px`, color: item.color }}
+                  onBlur={(e) => {
+                    const val = e.target.value.trim() || item.text;
+                    const nextTexts = textItems.map((t) =>
+                      t.id === item.id ? { ...t, text: val } : t
+                    );
+                    setTextItems(nextTexts);
+                    setEditingTextId(null);
+                    takeSnapshot(strokes, shapes, stamps, nextTexts);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="bg-white px-2 py-0.5 rounded border border-[#2724d1] font-bold focus:outline-none pointer-events-auto"
+                />
+              ) : (
+                <span
+                  style={{ fontSize: `${item.fontSize}px`, color: item.color }}
+                  className="font-bold whitespace-nowrap pointer-events-none"
+                >
+                  {item.text}
+                </span>
+              )}
 
-            {/* Diagonal Resize Handle */}
-            {selectedTextId === item.id && (
-              <div
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setIsResizingText(true);
-                  textResizeStart.current = {
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    initialFontSize: item.fontSize,
-                  };
-                }}
-                className="absolute -right-2 -bottom-2 flex size-4 items-center justify-center rounded-full bg-[#2724d1] text-white text-[9px] cursor-nwse-resize shadow-xs"
-                title="Drag diagonally to scale font size"
-              >
-                ↘
-              </div>
-            )}
+              {/* Diagonal Resize Handle */}
+              {isSelected && activeTool === "select" && (
+                <div
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setIsResizingText(true);
+                    textResizeStart.current = {
+                      startX: e.clientX,
+                      startY: e.clientY,
+                      initialFontSize: item.fontSize,
+                    };
+                  }}
+                  className="absolute -right-2 -bottom-2 flex size-4 items-center justify-center rounded-full bg-[#2724d1] text-white text-[9px] cursor-nwse-resize shadow-xs pointer-events-auto"
+                  title="Drag diagonally to scale font size"
+                >
+                  ↘
+                </div>
+              )}
 
-            {/* Remove Text Item Button */}
-            {selectedTextId === item.id && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTextItems((prev) => prev.filter((t) => t.id !== item.id));
-                }}
-                className="absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-[#d12724] text-white text-[9px] hover:bg-red-700 shadow-xs"
-                title="Remove text"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
+              {/* Remove Text Item Button */}
+              {isSelected && activeTool === "select" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextTexts = textItems.filter((t) => t.id !== item.id);
+                    setTextItems(nextTexts);
+                    setSelectedTextId(null);
+                    takeSnapshot(strokes, shapes, stamps, nextTexts);
+                  }}
+                  className="absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-[#d12724] text-white text-[9px] hover:bg-red-700 shadow-xs pointer-events-auto"
+                  title="Remove text"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          );
+        })}
 
         {/* Empty Canvas Guidance */}
         {!hasDrawn && shapes.length === 0 && stamps.length === 0 && textItems.length === 0 && (
@@ -1674,7 +1965,7 @@ export function CanvasPanel({
               Digital Napkin Sketchboard
             </h4>
             <p className="mt-1 text-xs text-[#52525b] max-w-sm leading-relaxed">
-              Draw wireframes with freehand pen, rectangle, and circle tools. Place editable stamps or draggable scalable text!
+              Draw wireframes with pen, shapes, or stamps. Switch to Select mode (V or Ctrl+S) to move and resize anything!
             </p>
           </div>
         )}
