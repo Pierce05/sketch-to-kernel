@@ -19,7 +19,7 @@ export default function PlaygroundPage() {
   const [apiKeyMode, setApiKeyMode] = useState<ApiKeyMode>("default_1");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
-  const [customModelId, setCustomModelId] = useState("z-ai/glm-5-3");
+  const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);

@@ -48,7 +48,7 @@ export function Navbar({
   onCustomApiKeyChange,
   customProvider = "gemini",
   onCustomProviderChange,
-  customModelId = "z-ai/glm-5-3",
+  customModelId = "z-ai/glm-5.3",
   onCustomModelIdChange,
 }: NavbarProps) {
   const pathname = usePathname();
@@ -59,7 +59,7 @@ export function Navbar({
   // Modal draft state
   const [activeTab, setActiveTab] = useState<CustomProvider>(customProvider);
   const [tempKey, setTempKey] = useState(customApiKey);
-  const [tempModel, setTempModel] = useState(customModelId || "z-ai/glm-5-3");
+  const [tempModel, setTempModel] = useState(customModelId || "z-ai/glm-5.3");
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -71,7 +71,7 @@ export function Navbar({
   useEffect(() => {
     setTempKey(customApiKey);
     setActiveTab(customProvider);
-    setTempModel(customModelId || "z-ai/glm-5-3");
+    setTempModel(customModelId || "z-ai/glm-5.3");
   }, [customApiKey, customProvider, customModelId]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
@@ -79,7 +79,7 @@ export function Navbar({
       setPreviousMode(apiKeyMode);
       setActiveTab(customProvider);
       setTempKey(customApiKey);
-      setTempModel(customModelId || "z-ai/glm-5-3");
+      setTempModel(customModelId || "z-ai/glm-5.3");
       setShowKeyModal(true);
     } else {
       onApiKeyModeChange(mode);
@@ -97,7 +97,7 @@ export function Navbar({
   const handleSaveCustomKey = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmedKey = tempKey.trim();
-    const trimmedModel = tempModel.trim() || "z-ai/glm-5-3";
+    const trimmedModel = tempModel.trim() || "z-ai/glm-5.3";
 
     if (trimmedKey) {
       onCustomApiKeyChange(trimmedKey);
@@ -183,14 +183,14 @@ export function Navbar({
               <span className="text-[10px] opacity-75 hidden md:inline">(Gemini)</span>
             </SketchOptionButton>
 
-            {/* Key 2: NVIDIA NIM (z-ai/glm-5-3) */}
+            {/* Key 2: NVIDIA NIM (z-ai/glm-5.3) */}
             <SketchOptionButton
               type="button"
               active={apiKeyMode === "default_2"}
               activeFill="#059669"
               activeStroke="#059669"
               onClick={() => handleModeSelect("default_2")}
-              title="Key 2: NVIDIA NIM (Model: z-ai/glm-5-3 • 39 RPM rate limited)"
+              title="Key 2: NVIDIA NIM (Model: z-ai/glm-5.3 • 39 RPM rate limited)"
               className="px-2.5 sm:px-3 py-1"
             >
               <span>Key 2</span>
@@ -329,11 +329,11 @@ export function Navbar({
                         type="text"
                         value={tempModel}
                         onChange={(e) => setTempModel(e.target.value)}
-                        placeholder="z-ai/glm-5-3"
+                        placeholder="z-ai/glm-5.3"
                         className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#059669] focus:outline-none"
                       />
                       <p className="mt-1 text-[11px] text-[#71717a] font-mono">
-                        Target model (e.g. <code className="text-[#059669] font-bold">z-ai/glm-5-3</code> or meta/llama-3.1-70b-instruct).
+                        Target model (e.g. <code className="text-[#059669] font-bold">z-ai/glm-5.3</code> or meta/llama-3.1-70b-instruct).
                       </p>
                     </div>
 

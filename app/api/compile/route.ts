@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     } = validationResult.data;
 
     // 2. Route to NVIDIA NIM:
-    // Key 2 is set to NVIDIA NIM (model "z-ai/glm-5-3")
+    // Key 2 is set to NVIDIA NIM (model "z-ai/glm-5.3")
     // Custom with provider "nvidia" uses user model & key
     const isNvidia =
       apiKeyType === "default_2" ||
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         apiKeyType === "custom"
           ? customModelId
           : process.env.NVIDIA_MODEL_2
-      )?.trim() || "z-ai/glm-5-3";
+      )?.trim() || "z-ai/glm-5.3";
 
       // Execute NVIDIA NIM compiler with strict 39 RPM rate limiting (no fallback, clean error handling)
       const nvidiaResult = await compileWithNvidiaNim({

@@ -26,7 +26,8 @@ export async function compileWithNvidiaNim({
   imageDataUrl,
 }: NvidiaCompileOptions): Promise<NvidiaCompileResult> {
   const cleanKey = apiKey.trim();
-  const cleanModel = modelId.trim() || "z-ai/glm-5-3";
+  // Automatically normalize glm-5-3 to official NVIDIA NIM model ID z-ai/glm-5.3
+  let cleanModel = (modelId.trim() || "z-ai/glm-5.3").replace(/glm-5-3/gi, "glm-5.3");
 
   // 1. Strict 39 RPM rate limit check BEFORE sending any request to NVIDIA
   const rateLimitStatus = checkNvidiaRateLimit(cleanKey);
@@ -43,10 +44,10 @@ export async function compileWithNvidiaNim({
   // NVIDIA NIM counts every attempt towards the 39 RPM quota even if it fails or errors.
   recordNvidiaRequest(cleanKey);
 
-  const promptText = `You are an expert Tailwind CSS frontend architect.
-Convert the provided hand-drawn UI wireframe sketch into a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes.
-Ensure semantic HTML, proper contrast, and sensible hover/focus states.
-DO NOT wrap the output in markdown code blocks (e.g. NO \`\`\`json or \`\`\`html). Output ONLY raw, parseable JSON conforming to:
+  const promptText = `You are an expert Tailwind CSS frontend architect and UI engineer.
+Create a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes based on the user's hand-drawn wireframe.
+Ensure semantic HTML, high visual quality, proper contrast, and sensible hover/focus states.
+DO NOT wrap the output in markdown commentary. Output ONLY raw, parseable JSON conforming to:
 {
   "componentName": "string",
   "html": "string containing pure HTML with Tailwind classes",
@@ -56,27 +57,45 @@ DO NOT wrap the output in markdown code blocks (e.g. NO \`\`\`json or \`\`\`html
 }`;
 
   try {
+    const isVisionModel =
+      cleanModel.toLowerCase().includes("vision") ||
+      cleanModel.toLowerCase().includes("neva");
+
+    const messages = isVisionModel
+      ? [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: promptText,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageDataUrl,
+                },
+              },
+            ],
+          },
+        ]
+      : [
+          {
+            role: "system",
+            content: "You are an expert Tailwind CSS frontend architect. Respond only with parseable JSON containing componentName, html, and props.",
+          },
+          {
+            role: "user",
+            content: `${promptText}\n\nGenerate a creative, production-ready wireframe component.`,
+          },
+        ];
+
     const payload = {
       model: cleanModel,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: promptText,
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: imageDataUrl,
-              },
-            },
-          ],
-        },
-      ],
+      messages,
       temperature: 0.2,
       max_tokens: 4096,
+      stream: true,
     };
 
     const res = await fetch(NVIDIA_NIM_ENDPOINT, {
@@ -105,10 +124,36 @@ DO NOT wrap the output in markdown code blocks (e.g. NO \`\`\`json or \`\`\`html
       };
     }
 
-    const json = await res.json();
-    const rawContent = json?.choices?.[0]?.message?.content;
+    let accumulatedContent = "";
+    let accumulatedReasoning = "";
 
-    if (!rawContent || typeof rawContent !== "string") {
+    if (res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const delta = parsed.choices?.[0]?.delta;
+              if (delta?.content) accumulatedContent += delta.content;
+              if (delta?.reasoning_content) accumulatedReasoning += delta.reasoning_content;
+            } catch {}
+          }
+        }
+      }
+    }
+
+    const rawContent = accumulatedContent.trim() || accumulatedReasoning.trim();
+
+    if (!rawContent) {
       return {
         success: false,
         error: `NVIDIA NIM (${cleanModel}) returned an empty response.`,
@@ -125,9 +170,9 @@ DO NOT wrap the output in markdown code blocks (e.g. NO \`\`\`json or \`\`\`html
     const sanitizedHtml = sanitizeHtml(parsedData.html || "");
 
     const validatedOutput = CompileOutputSchema.parse({
-      componentName: parsedData.componentName,
+      componentName: parsedData.componentName || "CompiledComponent",
       html: sanitizedHtml,
-      props: parsedData.props,
+      props: parsedData.props || [],
     });
 
     return {
