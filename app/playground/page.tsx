@@ -73,7 +73,8 @@ export default function PlaygroundPage() {
 
   const handleCompile = async (
     imageDataUrl: string,
-    selectedPreset?: CanvasPreset
+    selectedPreset?: CanvasPreset,
+    wireframeDescription?: string
   ) => {
     setIsCompiling(true);
     setErrorMessage(null);
@@ -85,6 +86,7 @@ export default function PlaygroundPage() {
     const payload: CompileRequest = {
       image: imageDataUrl,
       apiKeyType: apiKeyMode,
+      wireframeDescription,
       ...(apiKeyMode === "custom"
         ? {
             customProvider,
@@ -162,7 +164,7 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f6f5f0] text-[#18181b] font-sans selection:bg-[#fef08a] selection:text-[#18181b]">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#f6f5f0] text-[#18181b] font-sans selection:bg-[#fef08a] selection:text-[#18181b]">
       {/* Top Navbar */}
       <Navbar
         apiKeyMode={apiKeyMode}
@@ -178,7 +180,7 @@ export default function PlaygroundPage() {
       {/* Error / Rate Limit Notice Banner */}
       {errorMessage && (
         <div
-          className={`flex items-center justify-between border-b-2 px-4 py-2.5 text-xs font-mono transition-all ${
+          className={`flex shrink-0 items-center justify-between border-b-2 px-4 py-2 text-xs font-mono transition-all ${
             errorMessage.includes("rate limit") || errorMessage.includes("39 RPM")
               ? "border-amber-500 bg-amber-50 text-amber-900"
               : "border-[#d12724] bg-red-50 text-[#d12724]"
@@ -202,7 +204,7 @@ export default function PlaygroundPage() {
       )}
 
       {/* Mobile Top Controls Bar (visible only below md breakpoint) */}
-      <div className="flex md:hidden items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 py-2 text-xs font-mono">
+      <div className="flex shrink-0 md:hidden items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 py-2 text-xs font-mono">
         <div className="flex items-center gap-1.5 font-bold text-[#18181b]">
           <PenTool className="size-3.5 text-[#2724d1]" />
           <span>Drawing Board</span>
@@ -222,19 +224,22 @@ export default function PlaygroundPage() {
         </button>
       </div>
 
-      {/* Main Edge-to-Edge Workbench Body */}
-      <main className="flex-1 w-full p-1.5 sm:p-2.5 lg:p-3 overflow-hidden bg-sketchbook-grid">
-        <div className="flex h-[calc(100vh-4.5rem)] w-full flex-col md:flex-row gap-2 sm:gap-3">
+      {/* Main Edge-to-Edge Workbench Body (strictly non-scrolling) */}
+      <main className="flex-1 min-h-0 w-full p-1.5 sm:p-2 lg:p-2.5 overflow-hidden bg-sketchbook-grid">
+        <div className="flex size-full flex-col md:flex-row gap-2 sm:gap-2.5 min-h-0 overflow-hidden">
           {/* Left Panel: Drawing Canvas (Full width on mobile; 50% split on desktop/tablet) */}
-          <div className="h-full flex-1 md:w-1/2 min-w-0 flex">
+          <div className="h-full flex-1 md:w-1/2 min-w-0 min-h-0 flex overflow-hidden">
             <CanvasPanel
               onCompile={handleCompile}
               isCompiling={isCompiling}
+              compileProvider={customProvider}
+              compileModelId={customModelId}
+              apiKeyMode={apiKeyMode}
             />
           </div>
 
           {/* Right Panel: Live Sandbox Runner (Hidden on mobile; 50% split on desktop/tablet) */}
-          <div className="hidden md:flex h-full flex-1 md:w-1/2 min-w-0">
+          <div className="hidden md:flex h-full flex-1 md:w-1/2 min-w-0 min-h-0 overflow-hidden">
             <SandboxPanel
               compileResult={compileResult}
               isMock={isMock}

@@ -7,6 +7,7 @@ export interface CompileRequest {
   customProvider?: CustomProvider; // "gemini" | "nvidia"
   customApiKey?: string; // Sent when apiKeyType === "custom"
   customModelId?: string; // Sent for NVIDIA NIM custom model
+  wireframeDescription?: string; // Semantic wireframe element layout description
 }
 
 export interface ComponentProp {

@@ -11,6 +11,7 @@ export const CompileRequestSchema = z.object({
   customProvider: CustomProviderSchema.optional().default("gemini"),
   customApiKey: z.string().optional(),
   customModelId: z.string().optional(),
+  wireframeDescription: z.string().optional(),
 });
 
 export const ComponentPropSchema = z.object({

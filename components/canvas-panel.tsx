@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
-import { SketchButton, SketchBadge, SketchOptionButton } from "@/components/sketch-ui";
+import { SketchButton, SketchOptionButton } from "@/components/sketch-ui";
+import { ApiKeyMode, CustomProvider } from "@/lib/types";
 import {
   PenTool,
   Eraser,
@@ -24,11 +25,19 @@ import {
   Menu,
   Scissors,
   Check,
+  MousePointer,
 } from "lucide-react";
 
 interface CanvasPanelProps {
-  onCompile: (imageDataUrl: string, selectedPreset?: CanvasPreset) => void;
+  onCompile: (
+    imageDataUrl: string,
+    selectedPreset?: CanvasPreset,
+    wireframeDescription?: string
+  ) => void;
   isCompiling: boolean;
+  compileProvider?: CustomProvider;
+  compileModelId?: string;
+  apiKeyMode?: ApiKeyMode;
 }
 
 interface Point {
@@ -38,15 +47,35 @@ interface Point {
 
 export interface CanvasStroke {
   id: string;
-  tool: "pen" | "rectangle" | "circle";
+  tool: "pen";
   points: Point[];
   color: string;
   width: number;
 }
 
+export interface CanvasShape {
+  id: string;
+  type: "rectangle" | "circle";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  strokeWidth: number;
+}
+
 export interface DraggableStamp {
   id: string;
-  type: "button" | "input" | "card" | "badge" | "checkbox" | "toggle" | "dropdown" | "table" | "navbar";
+  type:
+    | "button"
+    | "input"
+    | "card"
+    | "badge"
+    | "checkbox"
+    | "toggle"
+    | "dropdown"
+    | "table"
+    | "navbar";
   x: number;
   y: number;
   width: number;
@@ -63,8 +92,9 @@ export interface CanvasTextItem {
   color: string;
 }
 
-export type ToolType = "pen" | "rectangle" | "circle" | "eraser" | "text";
+export type ToolType = "select" | "pen" | "rectangle" | "circle" | "eraser" | "text";
 export type EraserMode = "brush" | "eradicator";
+type ResizeHandleType = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
 const PEN_COLORS = [
   { name: "Ballpoint Blue", hex: "#2724d1" },
@@ -81,7 +111,22 @@ const STROKE_SIZES = [
   { label: "Marker", size: 14 },
 ];
 
-export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
+// Distance from point to line segment
+function distToSegment(p: Point, v: Point, w: Point): number {
+  const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+  if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+}
+
+export function CanvasPanel({
+  onCompile,
+  isCompiling,
+  compileProvider,
+  compileModelId,
+  apiKeyMode,
+}: CanvasPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,13 +138,40 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
 
-  // Background canvas color (Sketchbook paper white)
+  // Background canvas color (paper white)
   const canvasBgColor = "#ffffff";
 
-  // Full strokes collection for Eradicator & Redraw
+  // Freehand Pen Strokes collection
   const [strokes, setStrokes] = useState<CanvasStroke[]>([]);
   const currentStrokePoints = useRef<Point[]>([]);
-  const shapeOriginPoint = useRef<Point | null>(null);
+
+  // Interactive Resizable & Draggable Shapes
+  const [shapes, setShapes] = useState<CanvasShape[]>([]);
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  const [isDraggingShape, setIsDraggingShape] = useState(false);
+  const [isResizingShape, setIsResizingShape] = useState(false);
+  const [shapeDragOffset, setShapeDragOffset] = useState<Point>({ x: 0, y: 0 });
+  const activeResizeHandle = useRef<ResizeHandleType | null>(null);
+  const shapeResizeOrigin = useRef<{
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+    initialWidth: number;
+    initialHeight: number;
+  } | null>(null);
+
+  // Origin for creating new rectangle / circle
+  const shapeCreationOrigin = useRef<Point | null>(null);
+  const [shapePreview, setShapePreview] = useState<{
+    type: "rectangle" | "circle";
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
+    strokeWidth: number;
+  } | null>(null);
 
   // Snapshots for Undo / Redo
   const [history, setHistory] = useState<ImageData[]>([]);
@@ -119,17 +191,20 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   const [isDraggingText, setIsDraggingText] = useState(false);
   const [isResizingText, setIsResizingText] = useState(false);
   const [textDragOffset, setTextDragOffset] = useState<Point>({ x: 0, y: 0 });
-  const textResizeStart = useRef<{ startX: number; startY: number; initialFontSize: number } | null>(null);
+  const textResizeStart = useRef<{
+    startX: number;
+    startY: number;
+    initialFontSize: number;
+  } | null>(null);
 
   // Drawer state for "Try Examples"
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<CanvasPreset | null>(null);
 
-  // Last pointer coordinates for continuous line rendering
+  // Pointer tracking
   const lastPointRef = useRef<Point | null>(null);
-  const snapshotBeforeShape = useRef<ImageData | null>(null);
 
-  // Redraw all strokes on canvas
+  // Redraw all freehand pen strokes on canvas
   const redrawAllStrokes = useCallback((strokesToDraw: CanvasStroke[]) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -147,30 +222,15 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      if (stroke.tool === "pen") {
-        if (stroke.points.length === 1) {
-          ctx.fillStyle = stroke.color;
-          ctx.arc(stroke.points[0].x, stroke.points[0].y, stroke.width / 2, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-          for (let i = 1; i < stroke.points.length; i++) {
-            ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-          }
-          ctx.stroke();
+      if (stroke.points.length === 1) {
+        ctx.fillStyle = stroke.color;
+        ctx.arc(stroke.points[0].x, stroke.points[0].y, stroke.width / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
         }
-      } else if (stroke.tool === "rectangle" && stroke.points.length >= 2) {
-        const p1 = stroke.points[0];
-        const p2 = stroke.points[1];
-        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
-      } else if (stroke.tool === "circle" && stroke.points.length >= 2) {
-        const p1 = stroke.points[0];
-        const p2 = stroke.points[1];
-        const rx = Math.abs(p2.x - p1.x) / 2;
-        const ry = Math.abs(p2.y - p1.y) / 2;
-        const cx = Math.min(p1.x, p2.x) + rx;
-        const cy = Math.min(p1.y, p2.y) + ry;
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
     });
@@ -229,7 +289,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     return () => resizeObserver.disconnect();
   }, [setupCanvas]);
 
-  const saveHistorySnapshot = () => {
+  const saveHistorySnapshot = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -238,9 +298,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
     setHistory((prev) => [...prev.slice(-20), snapshot]);
     setRedoStack([]);
-  };
+  }, []);
 
-  const undo = () => {
+  const undo = useCallback(() => {
     if (history.length <= 1) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -254,9 +314,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     setHistory((prev) => prev.slice(0, -1));
 
     ctx.putImageData(previous, 0, 0);
-  };
+  }, [history]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (redoStack.length === 0) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -268,7 +328,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     setHistory((prev) => [...prev, next]);
 
     ctx.putImageData(next, 0, 0);
-  };
+  }, [redoStack]);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -280,14 +340,88 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     ctx.fillStyle = canvasBgColor;
     ctx.fillRect(0, 0, rect.width, rect.height);
     setStrokes([]);
+    setShapes([]);
     setStamps([]);
     setTextItems([]);
+    setSelectedShapeId(null);
+    setSelectedStampId(null);
+    setSelectedTextId(null);
     setSelectedPreset(null);
     setHasDrawn(false);
     saveHistorySnapshot();
   };
 
-  const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
+  // Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, V, P, R, C, T, E, Delete)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      if (isCtrlOrCmd && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
+      if (isCtrlOrCmd && (e.key === "y" || e.key === "Y")) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      if (isCtrlOrCmd && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        setActiveTool("select");
+        return;
+      }
+
+      if (!isCtrlOrCmd && !e.altKey) {
+        const k = e.key.toLowerCase();
+        if (k === "v") {
+          setActiveTool("select");
+        } else if (k === "p") {
+          setActiveTool("pen");
+        } else if (k === "r") {
+          setActiveTool("rectangle");
+        } else if (k === "c") {
+          setActiveTool("circle");
+        } else if (k === "t") {
+          setActiveTool("text");
+        } else if (k === "e") {
+          setActiveTool("eraser");
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+          if (selectedShapeId) {
+            setShapes((prev) => prev.filter((s) => s.id !== selectedShapeId));
+            setSelectedShapeId(null);
+          } else if (selectedStampId) {
+            setStamps((prev) => prev.filter((s) => s.id !== selectedStampId));
+            setSelectedStampId(null);
+          } else if (selectedTextId) {
+            setTextItems((prev) => prev.filter((t) => t.id !== selectedTextId));
+            setSelectedTextId(null);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo, selectedShapeId, selectedStampId, selectedTextId]);
+
+  const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement | HTMLDivElement>): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -297,63 +431,97 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     };
   };
 
-  // Eradicator check: does point touch stroke?
-  const checkStrokeHit = (pt: Point, stroke: CanvasStroke): boolean => {
-    const tolerance = Math.max(12, stroke.width * 2);
-
-    if (stroke.tool === "pen") {
-      for (const p of stroke.points) {
-        if (Math.hypot(p.x - pt.x, p.y - pt.y) <= tolerance) {
-          return true;
-        }
-      }
-      return false;
+  // Eradicator helper: Calculate minimum distance from pointer to a stroke's path
+  const getStrokeDistance = (pt: Point, stroke: CanvasStroke): number => {
+    if (stroke.points.length === 0) return Infinity;
+    if (stroke.points.length === 1) {
+      return Math.hypot(stroke.points[0].x - pt.x, stroke.points[0].y - pt.y);
     }
-
-    if (stroke.tool === "rectangle" && stroke.points.length >= 2) {
-      const p1 = stroke.points[0];
-      const p2 = stroke.points[1];
-      const minX = Math.min(p1.x, p2.x);
-      const maxX = Math.max(p1.x, p2.x);
-      const minY = Math.min(p1.y, p2.y);
-      const maxY = Math.max(p1.y, p2.y);
-
-      // Check perimeter proximity
-      const nearLeft = Math.abs(pt.x - minX) <= tolerance && pt.y >= minY - tolerance && pt.y <= maxY + tolerance;
-      const nearRight = Math.abs(pt.x - maxX) <= tolerance && pt.y >= minY - tolerance && pt.y <= maxY + tolerance;
-      const nearTop = Math.abs(pt.y - minY) <= tolerance && pt.x >= minX - tolerance && pt.x <= maxX + tolerance;
-      const nearBottom = Math.abs(pt.y - maxY) <= tolerance && pt.x >= minX - tolerance && pt.x <= maxX + tolerance;
-      return nearLeft || nearRight || nearTop || nearBottom;
+    let minD = Infinity;
+    for (let i = 0; i < stroke.points.length - 1; i++) {
+      const d = distToSegment(pt, stroke.points[i], stroke.points[i + 1]);
+      if (d < minD) minD = d;
     }
-
-    if (stroke.tool === "circle" && stroke.points.length >= 2) {
-      const p1 = stroke.points[0];
-      const p2 = stroke.points[1];
-      const rx = Math.abs(p2.x - p1.x) / 2;
-      const ry = Math.abs(p2.y - p1.y) / 2;
-      const cx = Math.min(p1.x, p2.x) + rx;
-      const cy = Math.min(p1.y, p2.y) + ry;
-      if (rx === 0 || ry === 0) return false;
-      const distRatio = Math.hypot((pt.x - cx) / rx, (pt.y - cy) / ry);
-      return Math.abs(distRatio - 1) <= 0.35;
-    }
-
-    return false;
+    return minD;
   };
 
-  const eradicateAtPoint = (pt: Point) => {
-    const remainingStrokes = strokes.filter((stroke) => !checkStrokeHit(pt, stroke));
-    if (remainingStrokes.length !== strokes.length) {
-      setStrokes(remainingStrokes);
-      redrawAllStrokes(remainingStrokes);
+  // Eradicate exactly the single closest stroke touched, without deleting crossed lines
+  const eradicateClosestStroke = (pt: Point) => {
+    const tolerance = 16;
+    let closestId: string | null = null;
+    let closestDist = tolerance;
+
+    strokes.forEach((stroke) => {
+      const d = getStrokeDistance(pt, stroke);
+      if (d <= closestDist) {
+        closestDist = d;
+        closestId = stroke.id;
+      }
+    });
+
+    if (closestId) {
+      setStrokes((prev) => {
+        const remaining = prev.filter((s) => s.id !== closestId);
+        redrawAllStrokes(remaining);
+        return remaining;
+      });
       saveHistorySnapshot();
     }
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isCompiling) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const point = getCanvasPoint(e);
     lastPointRef.current = point;
+
+    // Eradicator Mode: find and remove only the single touched stroke
+    if (activeTool === "eraser" && eraserMode === "eradicator") {
+      eradicateClosestStroke(point);
+      return;
+    }
+
+    if (activeTool === "select") {
+      // Clicked on empty canvas background: deselect active elements
+      setSelectedShapeId(null);
+      setSelectedStampId(null);
+      setSelectedTextId(null);
+      return;
+    }
+
+    if (activeTool === "text") {
+      // Place new text item and auto-transition to select mode
+      const newText: CanvasTextItem = {
+        id: `text-${Date.now()}`,
+        text: "Double-click text to edit",
+        x: Math.max(10, point.x - 30),
+        y: Math.max(10, point.y - 12),
+        fontSize: 18,
+        color: penColor,
+      };
+      setTextItems((prev) => [...prev, newText]);
+      setSelectedTextId(newText.id);
+      setSelectedShapeId(null);
+      setSelectedStampId(null);
+      setActiveTool("select"); // Auto-shift to select mode
+      setHasDrawn(true);
+      return;
+    }
+
+    if (activeTool === "rectangle" || activeTool === "circle") {
+      shapeCreationOrigin.current = point;
+      setShapePreview({
+        type: activeTool,
+        x: point.x,
+        y: point.y,
+        width: 0,
+        height: 0,
+        color: penColor,
+        strokeWidth,
+      });
+      return;
+    }
+
     setIsDrawing(true);
     setHasDrawn(true);
 
@@ -361,34 +529,6 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    if (activeTool === "text") {
-      // Place new text item
-      const newText: CanvasTextItem = {
-        id: `text-${Date.now()}`,
-        text: "Double-click to edit text",
-        x: Math.max(10, point.x - 40),
-        y: Math.max(10, point.y - 12),
-        fontSize: 16,
-        color: penColor,
-      };
-      setTextItems((prev) => [...prev, newText]);
-      setSelectedTextId(newText.id);
-      setActiveTool("pen");
-      setIsDrawing(false);
-      return;
-    }
-
-    if (activeTool === "eraser" && eraserMode === "eradicator") {
-      eradicateAtPoint(point);
-      return;
-    }
-
-    if (activeTool === "rectangle" || activeTool === "circle") {
-      shapeOriginPoint.current = point;
-      snapshotBeforeShape.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      return;
-    }
 
     if (activeTool === "pen") {
       currentStrokePoints.current = [point];
@@ -415,42 +555,36 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !lastPointRef.current) return;
+    if (isCompiling) return;
     const currentPoint = getCanvasPoint(e);
+
+    // Live preview for drawing rectangle / circle
+    if (
+      (activeTool === "rectangle" || activeTool === "circle") &&
+      shapeCreationOrigin.current
+    ) {
+      const origin = shapeCreationOrigin.current;
+      const x = Math.min(origin.x, currentPoint.x);
+      const y = Math.min(origin.y, currentPoint.y);
+      const width = Math.abs(currentPoint.x - origin.x);
+      const height = Math.abs(currentPoint.y - origin.y);
+      setShapePreview({
+        type: activeTool,
+        x,
+        y,
+        width,
+        height,
+        color: penColor,
+        strokeWidth,
+      });
+      return;
+    }
+
+    if (!isDrawing || !lastPointRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    if (activeTool === "eraser" && eraserMode === "eradicator") {
-      eradicateAtPoint(currentPoint);
-      lastPointRef.current = currentPoint;
-      return;
-    }
-
-    if (activeTool === "rectangle" || activeTool === "circle") {
-      if (!shapeOriginPoint.current || !snapshotBeforeShape.current) return;
-      ctx.putImageData(snapshotBeforeShape.current, 0, 0);
-
-      ctx.beginPath();
-      ctx.strokeStyle = penColor;
-      ctx.lineWidth = strokeWidth;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      const start = shapeOriginPoint.current;
-      if (activeTool === "rectangle") {
-        ctx.strokeRect(start.x, start.y, currentPoint.x - start.x, currentPoint.y - start.y);
-      } else {
-        const rx = Math.abs(currentPoint.x - start.x) / 2;
-        const ry = Math.abs(currentPoint.y - start.y) / 2;
-        const cx = Math.min(start.x, currentPoint.x) + rx;
-        const cy = Math.min(start.y, currentPoint.y) + ry;
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      return;
-    }
 
     if (activeTool === "pen") {
       currentStrokePoints.current.push(currentPoint);
@@ -484,18 +618,53 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignored
-    }
+    } catch {}
 
     const currentPoint = getCanvasPoint(e);
 
+    // Finish creating rectangle / circle: convert into interactive shape & auto-shift to select
+    if (
+      (activeTool === "rectangle" || activeTool === "circle") &&
+      shapeCreationOrigin.current
+    ) {
+      const origin = shapeCreationOrigin.current;
+      const x = Math.min(origin.x, currentPoint.x);
+      const y = Math.min(origin.y, currentPoint.y);
+      const width = Math.abs(currentPoint.x - origin.x);
+      const height = Math.abs(currentPoint.y - origin.y);
+
+      if (width >= 8 && height >= 8) {
+        const newShape: CanvasShape = {
+          id: `shape-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          type: activeTool,
+          x,
+          y,
+          width,
+          height,
+          color: penColor,
+          strokeWidth,
+        };
+        setShapes((prev) => [...prev, newShape]);
+        setSelectedShapeId(newShape.id);
+        setSelectedStampId(null);
+        setSelectedTextId(null);
+        setHasDrawn(true);
+        // Automatic shift to select mode after creating shape:
+        setActiveTool("select");
+      }
+
+      shapeCreationOrigin.current = null;
+      setShapePreview(null);
+      return;
+    }
+
+    if (!isDrawing) return;
+
     if (activeTool === "pen" && currentStrokePoints.current.length > 0) {
       const newStroke: CanvasStroke = {
-        id: `stroke-${Date.now()}-${Math.random()}`,
+        id: `stroke-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         tool: "pen",
         points: [...currentStrokePoints.current],
         color: penColor,
@@ -503,20 +672,6 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       };
       setStrokes((prev) => [...prev, newStroke]);
       currentStrokePoints.current = [];
-    } else if (
-      (activeTool === "rectangle" || activeTool === "circle") &&
-      shapeOriginPoint.current
-    ) {
-      const newStroke: CanvasStroke = {
-        id: `shape-${Date.now()}-${Math.random()}`,
-        tool: activeTool,
-        points: [shapeOriginPoint.current, currentPoint],
-        color: penColor,
-        width: strokeWidth,
-      };
-      setStrokes((prev) => [...prev, newStroke]);
-      shapeOriginPoint.current = null;
-      snapshotBeforeShape.current = null;
     }
 
     setIsDrawing(false);
@@ -535,7 +690,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       case "button":
         width = 130;
         height = 42;
-        label = "Sketch Button";
+        label = "Action Button";
         break;
       case "input":
         width = 180;
@@ -545,7 +700,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       case "card":
         width = 230;
         height = 140;
-        label = "Napkin Card Container";
+        label = "Card Container";
         break;
       case "badge":
         width = 90;
@@ -555,27 +710,27 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       case "checkbox":
         width = 140;
         height = 32;
-        label = "☑ Checkbox Item";
+        label = "☑ Checkbox";
         break;
       case "toggle":
         width = 130;
         height = 36;
-        label = "🔘 Toggle Switch";
+        label = "🔘 Switch";
         break;
       case "dropdown":
         width = 160;
         height = 38;
-        label = "▾ Select Option";
+        label = "▾ Dropdown";
         break;
       case "table":
         width = 240;
         height = 120;
-        label = "⊞ Data Grid Table";
+        label = "⊞ Data Table";
         break;
       case "navbar":
         width = 280;
         height = 48;
-        label = "☰ Brand Header Nav";
+        label = "☰ Brand Navbar";
         break;
     }
 
@@ -591,7 +746,91 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
 
     setStamps((prev) => [...prev, newStamp]);
     setSelectedStampId(newStamp.id);
+    setSelectedShapeId(null);
+    setSelectedTextId(null);
+    setActiveTool("select"); // Auto-shift to select mode
     setHasDrawn(true);
+  };
+
+  // Shape Resize Logic
+  const handleShapeResizePointerDown = (
+    e: React.PointerEvent,
+    shape: CanvasShape,
+    handle: ResizeHandleType
+  ) => {
+    e.stopPropagation();
+    setIsResizingShape(true);
+    activeResizeHandle.current = handle;
+    shapeResizeOrigin.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: shape.x,
+      initialY: shape.y,
+      initialWidth: shape.width,
+      initialHeight: shape.height,
+    };
+  };
+
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isResizingShape && selectedShapeId && shapeResizeOrigin.current && activeResizeHandle.current) {
+      const handle = activeResizeHandle.current;
+      const origin = shapeResizeOrigin.current;
+      const dx = e.clientX - origin.startX;
+      const dy = e.clientY - origin.startY;
+
+      let newX = origin.initialX;
+      let newY = origin.initialY;
+      let newW = origin.initialWidth;
+      let newH = origin.initialHeight;
+
+      if (handle.includes("e")) newW = Math.max(20, origin.initialWidth + dx);
+      if (handle.includes("s")) newH = Math.max(20, origin.initialHeight + dy);
+      if (handle.includes("w")) {
+        const potentialW = origin.initialWidth - dx;
+        if (potentialW >= 20) {
+          newW = potentialW;
+          newX = origin.initialX + dx;
+        }
+      }
+      if (handle.includes("n")) {
+        const potentialH = origin.initialHeight - dy;
+        if (potentialH >= 20) {
+          newH = potentialH;
+          newY = origin.initialY + dy;
+        }
+      }
+
+      setShapes((prev) =>
+        prev.map((s) =>
+          s.id === selectedShapeId
+            ? { ...s, x: newX, y: newY, width: newW, height: newH }
+            : s
+        )
+      );
+      return;
+    }
+
+    if (isDraggingShape && selectedShapeId) {
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
+      const newX = Math.max(0, e.clientX - containerRect.left - shapeDragOffset.x);
+      const newY = Math.max(0, e.clientY - containerRect.top - shapeDragOffset.y);
+
+      setShapes((prev) =>
+        prev.map((s) => (s.id === selectedShapeId ? { ...s, x: newX, y: newY } : s))
+      );
+    }
+  };
+
+  const handleContainerPointerUp = () => {
+    if (isResizingShape) {
+      setIsResizingShape(false);
+      activeResizeHandle.current = null;
+      shapeResizeOrigin.current = null;
+    }
+    if (isDraggingShape) {
+      setIsDraggingShape(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -673,11 +912,12 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     ctx.restore();
     setHasDrawn(true);
     setStamps([]);
+    setShapes([]);
     setTextItems([]);
     saveHistorySnapshot();
   };
 
-  // Export crisp composite canvas for Gemma 4 AI compilation
+  // Export crisp composite canvas image including drawn shapes, stamps, and text
   const exportCompositeCanvas = (): string => {
     const canvas = canvasRef.current;
     if (!canvas) return "";
@@ -693,7 +933,6 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const ctx = tempCanvas.getContext("2d");
     if (!ctx) return canvas.toDataURL("image/jpeg", 0.9);
 
-    // Solid white paper
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, targetW, targetH);
     ctx.drawImage(canvas, 0, 0, targetW, targetH);
@@ -701,6 +940,24 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const dpr = window.devicePixelRatio || 1;
     ctx.save();
     ctx.scale(dpr * scale, dpr * scale);
+
+    // Draw interactive shapes onto export
+    shapes.forEach((shape) => {
+      ctx.beginPath();
+      ctx.strokeStyle = shape.color;
+      ctx.lineWidth = shape.strokeWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      if (shape.type === "rectangle") {
+        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+      } else {
+        const rx = shape.width / 2;
+        const ry = shape.height / 2;
+        ctx.ellipse(shape.x + rx, shape.y + ry, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
 
     // Draw Stamps
     stamps.forEach((stamp) => {
@@ -730,26 +987,98 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     return tempCanvas.toDataURL("image/jpeg", 0.9);
   };
 
+  // Structured layout inventory describing drawn wireframe for NIM models
+  const serializeWireframeLayout = (): string => {
+    const elements: string[] = [];
+
+    shapes.forEach((s, idx) => {
+      const isWide = s.width > s.height * 2.2;
+      const isTall = s.height > s.width * 1.5;
+      const roleGuess =
+        s.type === "rectangle"
+          ? isWide && s.height < 60
+            ? "Button or Input Box"
+            : isTall
+            ? "Card Container or Sidebar"
+            : "Card or Container Panel"
+          : "Circular Badge or Avatar";
+
+      elements.push(
+        `- ${s.type.toUpperCase()} #${idx + 1}: at (x: ${Math.round(s.x)}, y: ${Math.round(s.y)}), size: ${Math.round(s.width)}x${Math.round(s.height)}px. Inferred role: ${roleGuess}. Color: ${s.color}`
+      );
+    });
+
+    stamps.forEach((stamp, idx) => {
+      elements.push(
+        `- COMPONENT STAMP #${idx + 1} (${stamp.type.toUpperCase()}): labeled "${stamp.label}" at (x: ${Math.round(stamp.x)}, y: ${Math.round(stamp.y)}), size: ${Math.round(stamp.width)}x${Math.round(stamp.height)}px`
+      );
+    });
+
+    textItems.forEach((text, idx) => {
+      elements.push(
+        `- TEXT ITEM #${idx + 1}: "${text.text}" (font size: ${text.fontSize}px) at (x: ${Math.round(text.x)}, y: ${Math.round(text.y)})`
+      );
+    });
+
+    if (strokes.length > 0) {
+      elements.push(
+        `- FREEHAND PEN SKETCHES: ${strokes.length} hand-drawn ink strokes illustrating wireframe borders, layout dividers, or icon sketches.`
+      );
+    }
+
+    if (elements.length === 0) {
+      return "Hand-drawn wireframe component sketch.";
+    }
+
+    return `CANVAS WIREFRAME INVENTORY:\n${elements.join("\n")}`;
+  };
+
   const handleCompileClick = () => {
     const dataUrl = exportCompositeCanvas();
-    onCompile(dataUrl, selectedPreset ?? undefined);
+    const wireframeDescription = serializeWireframeLayout();
+    onCompile(dataUrl, selectedPreset ?? undefined, wireframeDescription);
   };
+
+  // Dynamic compile button state
+  const compileStatusText = useMemo(() => {
+    if (!isCompiling) return "Compile Component →";
+    const isNvidia =
+      apiKeyMode === "default_2" ||
+      (apiKeyMode === "custom" && compileProvider === "nvidia");
+    if (isNvidia) {
+      const model = compileModelId ? compileModelId.replace("z-ai/", "") : "NIM";
+      return `Compiling with NVIDIA NIM (${model})...`;
+    }
+    return "Compiling with Gemma 4...";
+  }, [isCompiling, apiKeyMode, compileProvider, compileModelId]);
 
   return (
     <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border-2 border-[#18181b] bg-white shadow-xl">
       {/* Top Toolbox: Generously spaced tool groups */}
-      <div className="flex flex-wrap items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2.5 text-xs gap-2 sm:gap-3">
-          {/* Tool Group 1: Modes (Pen, Rect, Circle, Eraser, Text) */}
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2 text-xs gap-2">
+        {/* Tool Group 1: Modes (Select, Pen, Rect, Circle, Text, Eraser) */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold hidden sm:inline mr-1">
             Tools:
           </span>
           <div className="flex items-center gap-1">
+            {/* Mode: Select / Pointer */}
+            <SketchOptionButton
+              active={activeTool === "select"}
+              onClick={() => setActiveTool("select")}
+              className="px-2 sm:px-2.5 py-1"
+              title="Select tool (V or Ctrl+S): drag, resize shapes & text"
+            >
+              <MousePointer className="size-3.5" />
+              <span className="hidden md:inline font-bold">Select</span>
+            </SketchOptionButton>
+
+            {/* Mode: Pen */}
             <SketchOptionButton
               active={activeTool === "pen"}
               onClick={() => setActiveTool("pen")}
               className="px-2 sm:px-2.5 py-1"
-              title="Freehand pen"
+              title="Freehand pen (P)"
             >
               <PenTool className="size-3.5" />
               <span className="hidden md:inline">Pen</span>
@@ -760,7 +1089,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               active={activeTool === "rectangle"}
               onClick={() => setActiveTool("rectangle")}
               className="px-2 sm:px-2.5 py-1"
-              title="Rectangle / Square shape tool"
+              title="Rectangle shape tool (R): click & drag, auto-shifts to select"
             >
               <Square className="size-3.5" />
               <span className="hidden md:inline">Rect</span>
@@ -771,7 +1100,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               active={activeTool === "circle"}
               onClick={() => setActiveTool("circle")}
               className="px-2 sm:px-2.5 py-1"
-              title="Circle / Ellipse shape tool"
+              title="Circle shape tool (C): click & drag, auto-shifts to select"
             >
               <Circle className="size-3.5" />
               <span className="hidden md:inline">Circle</span>
@@ -782,7 +1111,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               active={activeTool === "text"}
               onClick={() => setActiveTool("text")}
               className="px-2 sm:px-2.5 py-1"
-              title="Add Scalable Draggable Text"
+              title="Draggable scalable text tool (T)"
             >
               <Type className="size-3.5" />
               <span className="hidden md:inline">Text</span>
@@ -793,7 +1122,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               active={activeTool === "eraser"}
               onClick={() => setActiveTool("eraser")}
               className="px-2 sm:px-2.5 py-1"
-              title="Eraser tool"
+              title="Eraser tool (E)"
             >
               <Eraser className="size-3.5" />
               <span className="hidden md:inline">Eraser</span>
@@ -819,7 +1148,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
                 activeStroke="#d12724"
                 onClick={() => setEraserMode("eradicator")}
                 className="px-2 py-0.5 text-[11px]"
-                title="Eradicator: touch to delete the entire stroke"
+                title="Eradicator: touch to delete the single touched stroke"
               >
                 <Scissors className="size-3" />
                 <span>Eradicator</span>
@@ -828,18 +1157,18 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           )}
         </div>
 
-        {/* Tool Group 2: Ink Colors (Spaced) */}
-        {activeTool !== "eraser" && (
+        {/* Tool Group 2: Ink Colors */}
+        {activeTool !== "eraser" && activeTool !== "select" && (
           <div className="flex items-center gap-1.5 sm:gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold hidden sm:inline">
               Ink:
             </span>
-            <div className="flex items-center gap-2 rounded-xl border border-[#18181b] bg-white px-2.5 py-1.5">
+            <div className="flex items-center gap-2 rounded-xl border border-[#18181b] bg-white px-2 py-1">
               {PEN_COLORS.map((col) => (
                 <button
                   key={col.hex}
                   onClick={() => setPenColor(col.hex)}
-                  className={`size-5 rounded-full transition-transform ${
+                  className={`size-4.5 rounded-full transition-transform ${
                     penColor === col.hex
                       ? "scale-125 ring-2 ring-[#18181b] ring-offset-2 ring-offset-white"
                       : "opacity-60 hover:opacity-100 hover:scale-110"
@@ -852,8 +1181,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           </div>
         )}
 
-        {/* Tool Group 3: Stroke Widths (Spaced) */}
-        {activeTool !== "text" && (
+        {/* Tool Group 3: Stroke Widths */}
+        {activeTool !== "text" && activeTool !== "select" && (
           <div className="hidden sm:flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold">
               Size:
@@ -874,15 +1203,14 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           </div>
         )}
 
-        {/* Tool Group 4: History & Action Buttons */}
+        {/* Tool Group 4: Undo/Redo & Utility Actions */}
         <div className="flex items-center gap-2">
-          {/* Undo / Redo */}
           <div className="flex items-center gap-1 rounded-xl border border-[#18181b] bg-white p-1 text-[#52525b]">
             <button
               onClick={undo}
               disabled={history.length <= 1}
               className="rounded-lg p-1.5 hover:bg-[#f5f4ee] hover:text-[#18181b] disabled:opacity-30"
-              title="Undo"
+              title="Undo (Ctrl+Z)"
             >
               <RotateCcw className="size-3.5" />
             </button>
@@ -890,25 +1218,23 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               onClick={redo}
               disabled={redoStack.length === 0}
               className="rounded-lg p-1.5 hover:bg-[#f5f4ee] hover:text-[#18181b] disabled:opacity-30"
-              title="Redo"
+              title="Redo (Ctrl+Y)"
             >
               <RotateCw className="size-3.5" />
             </button>
           </div>
 
-          {/* "Try These" Preset Drawer Trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border-2 border-[#2724d1] bg-blue-50 px-3 py-1.5 font-mono text-xs font-bold text-[#2724d1] hover:bg-blue-100 shadow-xs transition-all active:scale-95"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-[#2724d1] bg-blue-50 px-2.5 py-1.5 font-mono text-xs font-bold text-[#2724d1] hover:bg-blue-100 shadow-xs transition-all active:scale-95"
             title="Open example preset napkin wireframes"
           >
             <Sparkles className="size-3.5 text-[#2724d1]" />
             <span className="hidden sm:inline">Try These</span>
           </button>
 
-          {/* Photo Dropzone */}
           <label
-            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#18181b] bg-white px-3 py-1.5 text-xs text-[#18181b] hover:bg-[#f5f4ee] transition-colors"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#18181b] bg-white px-2.5 py-1.5 text-xs text-[#18181b] hover:bg-[#f5f4ee] transition-colors"
             title="Upload photo of paper wireframe"
           >
             <UploadCloud className="size-3.5 text-[#2724d1]" />
@@ -921,7 +1247,6 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             />
           </label>
 
-          {/* Clear Button */}
           <button
             onClick={clearCanvas}
             className="flex items-center justify-center rounded-xl border border-[#d12724] bg-red-50 p-2 text-[#d12724] hover:bg-red-100 transition-colors"
@@ -933,7 +1258,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       </div>
 
       {/* Expanded Pre-Made Components / Stamp Bar */}
-      <div className="flex items-center gap-2 border-b border-[#18181b] bg-[#faf9f5] px-3 sm:px-4 py-2 text-xs overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-[#18181b] bg-[#faf9f5] px-3 sm:px-4 py-1.5 text-xs overflow-x-auto">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[#52525b] font-bold whitespace-nowrap mr-1">
           Stamps (Double-Click To Rename):
         </span>
@@ -1005,6 +1330,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       {/* Main Drawing Area */}
       <div
         ref={containerRef}
+        onPointerMove={handleContainerPointerMove}
+        onPointerUp={handleContainerPointerUp}
         className="relative flex-1 bg-white select-none overflow-hidden bg-sketchbook-dots"
       >
         <canvas
@@ -1014,13 +1341,125 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           className={`touch-none-canvas size-full block ${
-            activeTool === "text"
+            isCompiling
+              ? "cursor-not-allowed"
+              : activeTool === "select"
+              ? "cursor-default"
+              : activeTool === "text"
               ? "cursor-text"
               : activeTool === "eraser"
-                ? "cursor-crosshair"
-                : "cursor-crosshair"
+              ? "cursor-crosshair"
+              : "cursor-crosshair"
           }`}
         />
+
+        {/* Live creation preview for rectangle/circle */}
+        {shapePreview && (
+          <div
+            style={{
+              left: `${shapePreview.x}px`,
+              top: `${shapePreview.y}px`,
+              width: `${shapePreview.width}px`,
+              height: `${shapePreview.height}px`,
+              borderColor: shapePreview.color,
+              borderWidth: `${shapePreview.strokeWidth}px`,
+            }}
+            className={`pointer-events-none absolute border border-dashed ${
+              shapePreview.type === "circle" ? "rounded-full" : "rounded-sm"
+            }`}
+          />
+        )}
+
+        {/* Interactive Resizable & Draggable Shapes Layer */}
+        {shapes.map((shape) => {
+          const isSelected = selectedShapeId === shape.id;
+          return (
+            <div
+              key={shape.id}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                setSelectedShapeId(shape.id);
+                setSelectedStampId(null);
+                setSelectedTextId(null);
+                setIsDraggingShape(true);
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setShapeDragOffset({
+                    x: e.clientX - rect.left - shape.x,
+                    y: e.clientY - rect.top - shape.y,
+                  });
+                }
+              }}
+              style={{
+                left: `${shape.x}px`,
+                top: `${shape.y}px`,
+                width: `${shape.width}px`,
+                height: `${shape.height}px`,
+                borderColor: shape.color,
+                borderWidth: `${shape.strokeWidth}px`,
+              }}
+              className={`absolute cursor-move select-none transition-shadow ${
+                shape.type === "circle" ? "rounded-full" : "rounded-md"
+              } ${
+                isSelected
+                  ? "ring-2 ring-[#2724d1] ring-offset-2 ring-offset-white shadow-lg"
+                  : "hover:ring-1 hover:ring-[#2724d1]/50"
+              }`}
+            >
+              {/* Selection Border & 8 Resize Handles */}
+              {isSelected && (
+                <>
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShapes((prev) => prev.filter((s) => s.id !== shape.id));
+                      setSelectedShapeId(null);
+                    }}
+                    className="absolute -top-3 -right-3 flex size-5 items-center justify-center rounded-full bg-[#d12724] text-[10px] text-white hover:bg-red-700 shadow-sm"
+                    title="Delete shape"
+                  >
+                    ✕
+                  </button>
+
+                  {/* 8 Resize Handles: NW, N, NE, E, SE, S, SW, W */}
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "nw")}
+                    className="absolute -top-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "n")}
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "ne")}
+                    className="absolute -top-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "e")}
+                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "se")}
+                    className="absolute -bottom-1.5 -right-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nwse-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "s")}
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 size-3 rounded-full bg-[#2724d1] border border-white cursor-ns-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "sw")}
+                    className="absolute -bottom-1.5 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-nesw-resize shadow-xs"
+                  />
+                  <div
+                    onPointerDown={(e) => handleShapeResizePointerDown(e, shape, "w")}
+                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 size-3 rounded-full bg-[#2724d1] border border-white cursor-ew-resize shadow-xs"
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
 
         {/* Interactive Draggable Stamps with Double Click Rename */}
         {stamps.map((stamp) => (
@@ -1030,6 +1469,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               if (editingStampId === stamp.id) return;
               e.stopPropagation();
               setSelectedStampId(stamp.id);
+              setSelectedShapeId(null);
+              setSelectedTextId(null);
               setIsDraggingStamp(true);
               setDragOffset({ x: e.clientX - stamp.x, y: e.clientY - stamp.y });
             }}
@@ -1108,6 +1549,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               if (editingTextId === item.id) return;
               e.stopPropagation();
               setSelectedTextId(item.id);
+              setSelectedShapeId(null);
+              setSelectedStampId(null);
               setIsDraggingText(true);
               setTextDragOffset({ x: e.clientX - item.x, y: e.clientY - item.y });
             }}
@@ -1127,7 +1570,8 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
                 );
               } else if (isResizingText && selectedTextId === item.id && textResizeStart.current) {
                 e.stopPropagation();
-                const delta = e.clientX - textResizeStart.current.startX + (e.clientY - textResizeStart.current.startY);
+                const delta =
+                  e.clientX - textResizeStart.current.startX + (e.clientY - textResizeStart.current.startY);
                 const newSize = Math.max(
                   12,
                   Math.min(96, Math.round(textResizeStart.current.initialFontSize + delta * 0.35))
@@ -1151,7 +1595,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               top: `${item.y}px`,
             }}
             className={`absolute flex items-center p-1.5 rounded-lg font-pen cursor-move select-none group border border-transparent ${
-              selectedTextId === item.id ? "border-dashed border-[#2724d1] bg-blue-50/40" : "hover:border-dashed hover:border-gray-400"
+              selectedTextId === item.id
+                ? "border-dashed border-[#2724d1] bg-blue-50/40"
+                : "hover:border-dashed hover:border-gray-400"
             }`}
           >
             {editingTextId === item.id ? (
@@ -1183,7 +1629,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               </span>
             )}
 
-            {/* Diagonal Resize Handle (Dragging increases/decreases font size) */}
+            {/* Diagonal Resize Handle */}
             {selectedTextId === item.id && (
               <div
                 onPointerDown={(e) => {
@@ -1219,7 +1665,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         ))}
 
         {/* Empty Canvas Guidance */}
-        {!hasDrawn && stamps.length === 0 && textItems.length === 0 && (
+        {!hasDrawn && shapes.length === 0 && stamps.length === 0 && textItems.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center p-6">
             <div className="flex size-14 items-center justify-center rounded-2xl border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] mb-3 shadow-xs">
               <PenTool className="size-6 stroke-[2.2]" />
@@ -1232,10 +1678,28 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             </p>
           </div>
         )}
+
+        {/* Canvas Locked Overlay while Compiling */}
+        {isCompiling && (
+          <div className="absolute inset-0 z-40 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center cursor-not-allowed select-none">
+            <div className="flex items-center gap-2.5 rounded-2xl border-2 border-[#18181b] bg-[#eceae1] px-5 py-3 font-mono text-xs font-bold text-[#18181b] shadow-xl">
+              <svg
+                className="size-4 animate-spin text-[#2724d1]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+              </svg>
+              <span>{compileStatusText} Canvas drawing is temporarily locked.</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Floating Compile Action Bar */}
-      <div className="flex items-center justify-between border-t-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2.5 sm:py-3">
+      <div className="flex items-center justify-between border-t-2 border-[#18181b] bg-[#eceae1] px-3 sm:px-4 py-2 sm:py-2.5">
         <div className="flex items-center gap-2">
           {selectedPreset ? (
             <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-mono font-bold text-[#2724d1] border border-[#2724d1]">
@@ -1244,7 +1708,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             </span>
           ) : (
             <span className="text-xs text-[#52525b] font-mono">
-              {hasDrawn || stamps.length > 0 || textItems.length > 0 ? "Ready to compile" : "Sketch on canvas"}
+              {hasDrawn || shapes.length > 0 || stamps.length > 0 || textItems.length > 0
+                ? "Ready to compile"
+                : "Sketch on canvas"}
             </span>
           )}
         </div>
@@ -1253,8 +1719,11 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         <SketchButton
           variant="primary"
           onClick={handleCompileClick}
-          disabled={isCompiling || (!hasDrawn && stamps.length === 0 && textItems.length === 0)}
-          className="text-xs font-bold py-2.5 px-6"
+          disabled={
+            isCompiling ||
+            (!hasDrawn && shapes.length === 0 && stamps.length === 0 && textItems.length === 0)
+          }
+          className="text-xs font-bold py-2 px-5 sm:px-6"
         >
           {isCompiling ? (
             <>
@@ -1267,7 +1736,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               >
                 <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
               </svg>
-              <span>Compiling with Gemma 4...</span>
+              <span>{compileStatusText}</span>
             </>
           ) : (
             <>
