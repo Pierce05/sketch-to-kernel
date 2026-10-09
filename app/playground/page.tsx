@@ -8,7 +8,7 @@ import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
 import { ApiKeyMode, CompileRequest, CompileResponse } from "@/lib/types";
 import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
 import confetti from "canvas-confetti";
-import { PenTool, Eye, AlertCircle, Sparkles } from "lucide-react";
+import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers } from "lucide-react";
 
 export default function PlaygroundPage() {
   const [apiKeyMode, setApiKeyMode] = useState<ApiKeyMode>("default_1");
@@ -20,8 +20,8 @@ export default function PlaygroundPage() {
   const [isMock, setIsMock] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Mobile view tab: "canvas" or "preview"
-  const [mobileTab, setMobileTab] = useState<"canvas" | "preview">("canvas");
+  // Mobile side drawer state (for live sandbox)
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -81,8 +81,8 @@ export default function PlaygroundPage() {
       setCompileResult(data);
       setIsMock(false);
 
-      // On mobile, automatically switch tab to preview on success
-      setMobileTab("preview");
+      // On mobile screens, automatically open the side drawer when compiled!
+      setIsMobileDrawerOpen(true);
 
       confetti({
         particleCount: 50,
@@ -92,7 +92,6 @@ export default function PlaygroundPage() {
     } catch (err: unknown) {
       console.warn("Backend compile API error. Falling back to Hacktoberfest preset mock:", err);
 
-      // Graceful fallback mock
       const fallbackPreset = selectedPreset || CANVAS_PRESETS[0];
       setCompileResult({
         componentName: fallbackPreset.mockResponse.componentName,
@@ -100,7 +99,9 @@ export default function PlaygroundPage() {
         props: fallbackPreset.mockResponse.props,
       });
       setIsMock(true);
-      setMobileTab("preview");
+
+      // Open side drawer on mobile for fallback mock
+      setIsMobileDrawerOpen(true);
 
       const errString = err instanceof Error ? err.message : String(err);
       if (!errString.includes("404") && !errString.includes("status")) {
@@ -143,57 +144,40 @@ export default function PlaygroundPage() {
         </div>
       )}
 
-      {/* Mobile Tab Toggle Bar (visible only below md breakpoint) */}
-      <div className="flex md:hidden items-center justify-around border-b-2 border-[#18181b] bg-[#eceae1] p-1.5 text-xs font-mono">
-        <button
-          onClick={() => setMobileTab("canvas")}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-bold transition-all ${
-            mobileTab === "canvas"
-              ? "bg-[#2724d1] text-white shadow-xs"
-              : "text-[#52525b] hover:text-[#18181b]"
-          }`}
-        >
-          <PenTool className="size-3.5" />
-          <span>Canvas &amp; Tools</span>
-        </button>
+      {/* Mobile Top Controls Bar (visible only below md breakpoint) */}
+      <div className="flex md:hidden items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-3 py-2 text-xs font-mono">
+        <div className="flex items-center gap-1.5 font-bold text-[#18181b]">
+          <PenTool className="size-3.5 text-[#2724d1]" />
+          <span>Drawing Board</span>
+        </div>
 
+        {/* Button to open the mobile side drawer */}
         <button
-          onClick={() => setMobileTab("preview")}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-bold transition-all ${
-            mobileTab === "preview"
-              ? "bg-[#2724d1] text-white shadow-xs"
-              : "text-[#52525b] hover:text-[#18181b]"
-          }`}
+          onClick={() => setIsMobileDrawerOpen(true)}
+          className="flex items-center gap-1.5 rounded-xl border-2 border-[#18181b] bg-white px-3 py-1 font-mono text-xs font-bold text-[#18181b] shadow-xs hover:bg-[#f5f4ee] active:scale-95 transition-all"
         >
-          <Eye className="size-3.5" />
-          <span>Live Preview &amp; Code</span>
+          <Eye className="size-3.5 text-[#2724d1]" />
+          <span>Live Sandbox</span>
           {compileResult && (
             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
           )}
+          <ChevronRight className="size-3 text-[#52525b]" />
         </button>
       </div>
 
-      {/* Main Split-Screen Workbench Body */}
-      <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden bg-sketchbook-grid">
-        <div className="mx-auto flex h-[calc(100vh-5.5rem)] max-w-7xl flex-col md:flex-row gap-4">
-          {/* Left Panel: Drawing Canvas */}
-          <div
-            className={`h-full flex-1 md:w-1/2 min-w-0 ${
-              mobileTab === "canvas" ? "flex" : "hidden md:flex"
-            }`}
-          >
+      {/* Main Edge-to-Edge Workbench Body */}
+      <main className="flex-1 w-full p-1.5 sm:p-2.5 lg:p-3 overflow-hidden bg-sketchbook-grid">
+        <div className="flex h-[calc(100vh-4.5rem)] w-full flex-col md:flex-row gap-2 sm:gap-3">
+          {/* Left Panel: Drawing Canvas (Full width on mobile; 50% split on desktop/tablet) */}
+          <div className="h-full flex-1 md:w-1/2 min-w-0 flex">
             <CanvasPanel
               onCompile={handleCompile}
               isCompiling={isCompiling}
             />
           </div>
 
-          {/* Right Panel: Live Sandbox Runner */}
-          <div
-            className={`h-full flex-1 md:w-1/2 min-w-0 ${
-              mobileTab === "preview" ? "flex" : "hidden md:flex"
-            }`}
-          >
+          {/* Right Panel: Live Sandbox Runner (Hidden on mobile; 50% split on desktop/tablet) */}
+          <div className="hidden md:flex h-full flex-1 md:w-1/2 min-w-0">
             <SandboxPanel
               compileResult={compileResult}
               isMock={isMock}
@@ -202,6 +186,50 @@ export default function PlaygroundPage() {
           </div>
         </div>
       </main>
+
+      {/* Mobile Side Drawer for Sandbox (Opens upon compilation or button press) */}
+      {isMobileDrawerOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop with blur - clicking outside closes the drawer */}
+          <div
+            onClick={() => setIsMobileDrawerOpen(false)}
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
+          />
+
+          {/* Slide-out drawer content */}
+          <div className="relative z-10 h-full w-[94vw] max-w-md bg-white border-l-2 border-[#18181b] flex flex-col shadow-2xl animate-in slide-in-from-right duration-250">
+            {/* Drawer top close bar */}
+            <div className="flex items-center justify-between border-b-2 border-[#18181b] bg-[#eceae1] px-4 py-2.5">
+              <div className="flex items-center gap-2 font-mono font-bold text-xs text-[#18181b]">
+                <Layers className="size-4 text-[#2724d1]" />
+                <span>Live Sandbox Drawer</span>
+                {compileResult && (
+                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] text-[#2724d1] border border-[#2724d1]">
+                    &lt;{compileResult.componentName} /&gt;
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="flex size-7 items-center justify-center rounded-lg border border-[#18181b] bg-white text-[#52525b] hover:text-[#18181b] active:scale-95"
+                title="Close drawer"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Sandbox panel inside mobile drawer */}
+            <div className="flex-1 overflow-hidden">
+              <SandboxPanel
+                compileResult={compileResult}
+                isMock={isMock}
+                onReset={handleResetSandbox}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

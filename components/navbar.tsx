@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { ApiKeyMode } from "@/lib/types";
 import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
@@ -31,11 +32,16 @@ export function Navbar({
 }: NavbarProps) {
   const pathname = usePathname();
   const { navigateWithBlob } = useInkBlobRouter();
+  const [mounted, setMounted] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [tempKey, setTempKey] = useState(customApiKey);
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setTempKey(customApiKey);
@@ -181,15 +187,15 @@ export function Navbar({
         </div>
       </div>
 
-      {/* Custom Key Modal: Hand-drawn Napkin Index Card */}
-      {showKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-md">
+      {/* Custom Key Modal: Rendered via Portal to avoid header clipping */}
+      {showKeyModal && mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 sm:p-6 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
+          <div className="my-auto w-full max-w-md max-h-[88vh] overflow-y-auto">
             <SketchCard
               roughness={1.5}
               stroke="#18181b"
               fill="#ffffff"
-              className="p-6 shadow-2xl rounded-2xl"
+              className="p-5 sm:p-6 shadow-2xl rounded-2xl"
             >
               <div className="flex items-center justify-between border-b-2 border-[#18181b] pb-3">
                 <div className="flex items-center gap-2.5">
@@ -263,7 +269,8 @@ export function Navbar({
               </form>
             </SketchCard>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );
