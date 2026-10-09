@@ -5,14 +5,21 @@ import { Navbar } from "@/components/navbar";
 import { CanvasPanel } from "@/components/canvas-panel";
 import { SandboxPanel } from "@/components/sandbox-panel";
 import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
-import { ApiKeyMode, CompileRequest, CompileResponse } from "@/lib/types";
-import { STORAGE_CUSTOM_KEY, STORAGE_KEY_MODE } from "@/lib/utils";
+import { ApiKeyMode, CustomProvider, CompileRequest, CompileResponse } from "@/lib/types";
+import {
+  STORAGE_CUSTOM_KEY,
+  STORAGE_KEY_MODE,
+  STORAGE_CUSTOM_PROVIDER,
+  STORAGE_CUSTOM_MODEL,
+} from "@/lib/utils";
 import confetti from "canvas-confetti";
-import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers } from "lucide-react";
+import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers, ShieldAlert } from "lucide-react";
 
 export default function PlaygroundPage() {
   const [apiKeyMode, setApiKeyMode] = useState<ApiKeyMode>("default_1");
   const [customApiKey, setCustomApiKey] = useState("");
+  const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
+  const [customModelId, setCustomModelId] = useState("z-ai/glm-5-3");
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);
@@ -29,6 +36,10 @@ export default function PlaygroundPage() {
       if (savedMode) setApiKeyMode(savedMode);
       const savedKey = localStorage.getItem(STORAGE_CUSTOM_KEY);
       if (savedKey) setCustomApiKey(savedKey);
+      const savedProvider = localStorage.getItem(STORAGE_CUSTOM_PROVIDER) as CustomProvider;
+      if (savedProvider) setCustomProvider(savedProvider);
+      const savedModel = localStorage.getItem(STORAGE_CUSTOM_MODEL);
+      if (savedModel) setCustomModelId(savedModel);
     }
   }, []);
 
@@ -46,6 +57,20 @@ export default function PlaygroundPage() {
     }
   };
 
+  const handleCustomProviderChange = (provider: CustomProvider) => {
+    setCustomProvider(provider);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_PROVIDER, provider);
+    }
+  };
+
+  const handleCustomModelIdChange = (model: string) => {
+    setCustomModelId(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL, model);
+    }
+  };
+
   const handleCompile = async (
     imageDataUrl: string,
     selectedPreset?: CanvasPreset
@@ -53,11 +78,19 @@ export default function PlaygroundPage() {
     setIsCompiling(true);
     setErrorMessage(null);
 
+    const isNvidia =
+      apiKeyMode === "default_2" ||
+      (apiKeyMode === "custom" && customProvider === "nvidia");
+
     const payload: CompileRequest = {
       image: imageDataUrl,
       apiKeyType: apiKeyMode,
-      ...(apiKeyMode === "custom" && customApiKey
-        ? { customApiKey }
+      ...(apiKeyMode === "custom"
+        ? {
+            customProvider,
+            customApiKey: customApiKey || undefined,
+            customModelId: customModelId || undefined,
+          }
         : {}),
     };
 
@@ -69,7 +102,8 @@ export default function PlaygroundPage() {
       });
 
       if (!res.ok) {
-        throw new Error(`API compilation returned status ${res.status}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `API compilation returned status ${res.status}`);
       }
 
       const data: CompileResponse = await res.json();
@@ -90,6 +124,16 @@ export default function PlaygroundPage() {
         origin: { y: 0.6 },
       });
     } catch (err: unknown) {
+      const errString = err instanceof Error ? err.message : String(err);
+
+      // For NVIDIA NIM: strictly NO fallback to mock, only error handling!
+      if (isNvidia) {
+        console.error("NVIDIA NIM Compilation failed:", errString);
+        setErrorMessage(errString);
+        return;
+      }
+
+      // For Gemini: fallback to preset mock with informative notice
       console.warn("Backend compile API error. Falling back to Hacktoberfest preset mock:", err);
 
       const fallbackPreset = selectedPreset || CANVAS_PRESETS[0];
@@ -103,7 +147,6 @@ export default function PlaygroundPage() {
       // Open side drawer on mobile for fallback mock
       setIsMobileDrawerOpen(true);
 
-      const errString = err instanceof Error ? err.message : String(err);
       if (!errString.includes("404") && !errString.includes("status")) {
         setErrorMessage(`Compilation notice: ${errString}. Loaded preset fallback.`);
       }
@@ -126,18 +169,32 @@ export default function PlaygroundPage() {
         onApiKeyModeChange={handleApiKeyModeChange}
         customApiKey={customApiKey}
         onCustomApiKeyChange={handleCustomApiKeyChange}
+        customProvider={customProvider}
+        onCustomProviderChange={handleCustomProviderChange}
+        customModelId={customModelId}
+        onCustomModelIdChange={handleCustomModelIdChange}
       />
 
-      {/* Error / Notice Banner */}
+      {/* Error / Rate Limit Notice Banner */}
       {errorMessage && (
-        <div className="flex items-center justify-between border-b-2 border-[#d12724] bg-red-50 px-4 py-2 text-xs text-[#d12724] font-mono">
+        <div
+          className={`flex items-center justify-between border-b-2 px-4 py-2.5 text-xs font-mono transition-all ${
+            errorMessage.includes("rate limit") || errorMessage.includes("39 RPM")
+              ? "border-amber-500 bg-amber-50 text-amber-900"
+              : "border-[#d12724] bg-red-50 text-[#d12724]"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 text-[#d12724]" />
-            <span>{errorMessage}</span>
+            {errorMessage.includes("rate limit") || errorMessage.includes("39 RPM") ? (
+              <ShieldAlert className="size-4 shrink-0 text-amber-600" />
+            ) : (
+              <AlertCircle className="size-4 shrink-0 text-[#d12724]" />
+            )}
+            <span className="font-semibold">{errorMessage}</span>
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-[#d12724] hover:text-red-900 font-bold"
+            className="hover:opacity-80 font-bold ml-4"
           >
             ✕
           </button>
