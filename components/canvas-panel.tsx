@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
+import { SketchButton, SketchCard, SketchBadge } from "@/components/sketch-ui";
 import {
   PenTool,
   Eraser,
@@ -13,11 +14,9 @@ import {
   Layers,
   ChevronRight,
   X,
-  Palette,
-  Circle,
   Square,
   Type,
-  ToggleLeft,
+  Circle,
   CheckSquare,
 } from "lucide-react";
 
@@ -42,17 +41,18 @@ interface DraggableStamp {
 }
 
 const PEN_COLORS = [
-  { name: "Chalk White", hex: "#f1f5f9" },
-  { name: "Indigo Blue", hex: "#818cf8" },
-  { name: "Neon Purple", hex: "#c084fc" },
-  { name: "Emerald Mint", hex: "#34d399" },
+  { name: "Blue Ink", hex: "#2563eb" },
+  { name: "Graphite Black", hex: "#0f172a" },
+  { name: "Chalk White", hex: "#f8fafc" },
+  { name: "Ruby Red", hex: "#e11d48" },
+  { name: "Mint Green", hex: "#10b981" },
 ];
 
 const STROKE_SIZES = [
   { label: "Fine", size: 2 },
-  { label: "Medium", size: 4 },
-  { label: "Thick", size: 8 },
-  { label: "Chunky", size: 14 },
+  { label: "Normal", size: 4 },
+  { label: "Bold", size: 7 },
+  { label: "Marker", size: 14 },
 ];
 
 export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
@@ -65,6 +65,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
+
+  // Background canvas color (Sketchbook paper)
+  const canvasBgColor = "#0f111a";
 
   // Undo / Redo history
   const [history, setHistory] = useState<ImageData[]>([]);
@@ -80,7 +83,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<CanvasPreset | null>(null);
 
-  // Last pointer coordinates for smooth interpolation
+  // Last pointer coordinates for continuous line rendering
   const lastPointRef = useRef<Point | null>(null);
 
   // Initialize canvas backing store resolution
@@ -117,8 +120,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     if (tempCanvas) {
       ctx.drawImage(tempCanvas, 0, 0, rect.width, rect.height);
     } else {
-      // Dark blackboard fill
-      ctx.fillStyle = "#0c0e15";
+      ctx.fillStyle = canvasBgColor;
       ctx.fillRect(0, 0, rect.width, rect.height);
       saveState();
     }
@@ -136,7 +138,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    setHistory((prev) => [...prev.slice(-15), imgData]);
+    setHistory((prev) => [...prev.slice(-20), imgData]);
     setRedoStack([]);
   };
 
@@ -174,7 +176,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     if (!ctx) return;
 
     const rect = container.getBoundingClientRect();
-    ctx.fillStyle = "#0c0e15";
+    ctx.fillStyle = canvasBgColor;
     ctx.fillRect(0, 0, rect.width, rect.height);
     setStamps([]);
     setHasDrawn(false);
@@ -193,7 +195,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     };
   };
 
-  // Pointer Down
+  // Pointer Down: Start continuous stroke
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const pos = getPointerPos(e);
@@ -205,13 +207,17 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const ctx = canvas?.getContext("2d");
     if (!ctx) return;
 
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Immediate initial dab so even a quick tap makes a mark
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, strokeWidth / 2, 0, Math.PI * 2);
-    ctx.fillStyle = activeTool === "eraser" ? "#0c0e15" : penColor;
+    ctx.fillStyle = activeTool === "eraser" ? canvasBgColor : penColor;
     ctx.fill();
   };
 
-  // Pointer Move (Smooth quadratic bezier curves for 60fps)
+  // Pointer Move: 100% Solid Continuous Unbroken Stroke (Fixes dotted line issue)
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !lastPointRef.current) return;
     const canvas = canvasRef.current;
@@ -222,17 +228,14 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const lastPos = lastPointRef.current;
 
     ctx.beginPath();
-    ctx.strokeStyle = activeTool === "eraser" ? "#0c0e15" : penColor;
-    ctx.lineWidth = activeTool === "eraser" ? strokeWidth * 2.5 : strokeWidth;
+    ctx.strokeStyle = activeTool === "eraser" ? canvasBgColor : penColor;
+    ctx.lineWidth = activeTool === "eraser" ? strokeWidth * 3.5 : strokeWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // Quadratic curve interpolation
-    const midX = (lastPos.x + currentPos.x) / 2;
-    const midY = (lastPos.y + currentPos.y) / 2;
-
+    // Continuous lineTo guarantees zero gaps or dots
     ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.quadraticCurveTo(lastPos.x, lastPos.y, midX, midY);
+    ctx.lineTo(currentPos.x, currentPos.y);
     ctx.stroke();
 
     lastPointRef.current = currentPos;
@@ -244,14 +247,14 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
-      // Ignore if not captured
+      // Ignore
     }
     setIsDrawing(false);
     lastPointRef.current = null;
     saveState();
   };
 
-  // File Upload / Real Photo Dropzone
+  // File Upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -267,7 +270,6 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         if (!ctx) return;
 
         const rect = container.getBoundingClientRect();
-        // Scale image keeping aspect ratio
         const scale = Math.min((rect.width * 0.9) / img.width, (rect.height * 0.9) / img.height);
         const nw = img.width * scale;
         const nh = img.height * scale;
@@ -283,7 +285,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     reader.readAsDataURL(file);
   };
 
-  // Stamp tools: add hand-drawn element stamp onto the board
+  // Stamp tools: add hand-drawn element stamp onto board
   const addStamp = (type: DraggableStamp["type"]) => {
     const container = containerRef.current;
     if (!container) return;
@@ -292,27 +294,27 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const newStamp: DraggableStamp = {
       id: `stamp-${Date.now()}`,
       type,
-      x: rect.width / 2 - 70,
-      y: rect.height / 2 - 30,
+      x: rect.width / 2 - 75,
+      y: rect.height / 2 - 25,
       width: type === "card" ? 180 : 130,
       height: type === "card" ? 120 : 40,
       label:
         type === "button"
-          ? "[ Button CTA ]"
+          ? "[ CTA Button ]"
           : type === "input"
-          ? "[ Text Field ]"
+          ? "[ User Input ]"
           : type === "card"
-          ? "[ Container Box ]"
+          ? "[ Project Card ]"
           : type === "badge"
-          ? "[ Feature Badge ]"
-          : "[✓] Option Check",
+          ? "[ Track Badge ]"
+          : "[✓] Upvote",
     };
 
     setStamps((prev) => [...prev, newStamp]);
     setHasDrawn(true);
   };
 
-  // Load a preset sketch directly onto canvas
+  // Load a preset sketch onto canvas
   const handleSelectPreset = (preset: CanvasPreset) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -323,7 +325,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const rect = container.getBoundingClientRect();
 
     // Reset background
-    ctx.fillStyle = "#0c0e15";
+    ctx.fillStyle = canvasBgColor;
     ctx.fillRect(0, 0, rect.width, rect.height);
     setStamps([]);
 
@@ -335,7 +337,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     setIsDrawerOpen(false);
   };
 
-  // Composite canvas (draw stamps permanently into canvas raster before export)
+  // Composite canvas for export
   const exportCompositeCanvas = (): string => {
     const canvas = canvasRef.current;
     if (!canvas) return "";
@@ -346,18 +348,16 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
     const ctx = tempCanvas.getContext("2d");
     if (!ctx) return canvas.toDataURL("image/png");
 
-    // Copy base drawing
     ctx.drawImage(canvas, 0, 0);
 
-    // Render stamps onto composite
     const dpr = window.devicePixelRatio || 1;
     ctx.save();
     ctx.scale(dpr, dpr);
 
     stamps.forEach((stamp) => {
-      ctx.strokeStyle = "#a5b4fc";
+      ctx.strokeStyle = "#4f46e5";
       ctx.lineWidth = 2;
-      ctx.fillStyle = "rgba(79, 70, 229, 0.15)";
+      ctx.fillStyle = "rgba(79, 70, 229, 0.12)";
       ctx.strokeRect(stamp.x, stamp.y, stamp.width, stamp.height);
       ctx.fillRect(stamp.x, stamp.y, stamp.width, stamp.height);
 
@@ -378,82 +378,97 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
   };
 
   return (
-    <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border border-[#232738] bg-[#0c0e15] shadow-2xl">
-      {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between border-b border-[#232738] bg-[#11131b] px-3 py-2 text-xs">
-        {/* Left Tools: Pen, Eraser, Width, Colors */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {/* Tool switch */}
-          <div className="flex items-center rounded-lg border border-[#2b3044] bg-[#090a0f] p-0.5">
+    <div className="relative flex size-full flex-col overflow-hidden rounded-2xl border-2 border-[#2b3044] bg-[#0c0e15] shadow-2xl">
+      {/* Top Toolbox: Generously spaced tool groups */}
+      <div className="flex flex-wrap items-center justify-between border-b-2 border-[#232738] bg-[#131520] px-4 py-2.5 text-xs gap-3">
+        {/* Tool Group 1: Pen / Eraser Modes */}
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold mr-1">
+            Tools:
+          </span>
+          <div className="flex items-center gap-1 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1">
             <button
               onClick={() => setActiveTool("pen")}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold transition-all ${
                 activeTool === "pen"
-                  ? "bg-indigo-600 text-white"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-gray-400 hover:text-white"
               }`}
               title="Pen tool"
             >
               <PenTool className="size-3.5" />
-              <span className="hidden sm:inline">Pen</span>
+              <span>Pen</span>
             </button>
             <button
               onClick={() => setActiveTool("eraser")}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold transition-all ${
                 activeTool === "eraser"
-                  ? "bg-indigo-600 text-white"
-                  : "text-gray-400 hover:text-gray-200"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-gray-400 hover:text-white"
               }`}
               title="Eraser tool"
             >
               <Eraser className="size-3.5" />
-              <span className="hidden sm:inline">Eraser</span>
+              <span>Eraser</span>
             </button>
           </div>
+        </div>
 
-          {/* Color Picker */}
-          {activeTool === "pen" && (
-            <div className="flex items-center gap-1 rounded-lg border border-[#2b3044] bg-[#090a0f] p-1">
+        {/* Tool Group 2: Ink Colors (Spaced) */}
+        {activeTool === "pen" && (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+              Ink:
+            </span>
+            <div className="flex items-center gap-2 rounded-xl border border-[#2b3044] bg-[#0a0b10] px-2.5 py-1.5">
               {PEN_COLORS.map((col) => (
                 <button
                   key={col.hex}
                   onClick={() => setPenColor(col.hex)}
-                  className={`size-4 rounded-full transition-all ${
+                  className={`size-5 rounded-full transition-transform ${
                     penColor === col.hex
-                      ? "ring-2 ring-white ring-offset-1 ring-offset-[#090a0f] scale-110"
-                      : "opacity-60 hover:opacity-100"
+                      ? "scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0a0b10]"
+                      : "opacity-60 hover:opacity-100 hover:scale-110"
                   }`}
                   style={{ backgroundColor: col.hex }}
                   title={col.name}
                 />
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Stroke Width Selector */}
-          <div className="flex items-center rounded-lg border border-[#2b3044] bg-[#090a0f] p-0.5">
+        {/* Tool Group 3: Stroke Widths (Spaced) */}
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+            Size:
+          </span>
+          <div className="flex items-center gap-1.5 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1">
             {STROKE_SIZES.map((sz) => (
               <button
                 key={sz.size}
                 onClick={() => setStrokeWidth(sz.size)}
-                className={`rounded px-1.5 py-0.5 text-[11px] font-mono transition-colors ${
+                className={`rounded-lg px-2.5 py-1 text-xs font-mono transition-colors ${
                   strokeWidth === sz.size
-                    ? "bg-gray-800 text-white font-bold"
-                    : "text-gray-400 hover:text-gray-200"
+                    ? "bg-indigo-700 text-white font-bold"
+                    : "text-gray-400 hover:text-white"
                 }`}
-                title={`${sz.label} stroke`}
+                title={`${sz.label} stroke width`}
               >
                 {sz.size}px
               </button>
             ))}
           </div>
+        </div>
 
+        {/* Tool Group 4: History & Action Buttons */}
+        <div className="flex items-center gap-3">
           {/* Undo / Redo */}
-          <div className="flex items-center gap-0.5 text-gray-400">
+          <div className="flex items-center gap-1 rounded-xl border border-[#2b3044] bg-[#0a0b10] p-1 text-gray-400">
             <button
               onClick={undo}
               disabled={history.length <= 1}
-              className="rounded p-1 hover:bg-[#1a1d29] hover:text-white disabled:opacity-30"
+              className="rounded-lg p-1.5 hover:bg-gray-800 hover:text-white disabled:opacity-30"
               title="Undo"
             >
               <RotateCcw className="size-3.5" />
@@ -461,33 +476,30 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
             <button
               onClick={redo}
               disabled={redoStack.length === 0}
-              className="rounded p-1 hover:bg-[#1a1d29] hover:text-white disabled:opacity-30"
+              className="rounded-lg p-1.5 hover:bg-gray-800 hover:text-white disabled:opacity-30"
               title="Redo"
             >
               <RotateCw className="size-3.5" />
             </button>
           </div>
-        </div>
 
-        {/* Right Action Tools: Stamp palette, Try Examples, File Upload, Clear */}
-        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0">
-          {/* "Try These" Drawer Button (Game Level Selector) */}
+          {/* "Try These" Preset Drawer Trigger */}
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-950/60 px-2.5 py-1 text-xs font-semibold text-indigo-300 hover:bg-indigo-900/80 transition-all shadow-sm"
-            title="Open example preset napkin sketches"
+            className="flex items-center gap-1.5 rounded-xl border-2 border-indigo-500/60 bg-indigo-950/70 px-3.5 py-1.5 font-mono text-xs font-bold text-indigo-300 hover:bg-indigo-900 shadow-md transition-all active:scale-95"
+            title="Open example preset napkin wireframes"
           >
             <Sparkles className="size-3.5 text-indigo-400" />
             <span>Try These</span>
           </button>
 
-          {/* File Upload Button */}
+          {/* Photo Dropzone */}
           <label
-            className="flex cursor-pointer items-center gap-1 rounded-lg border border-[#2b3044] bg-[#090a0f] px-2 py-1 text-xs text-gray-300 hover:bg-[#1a1d29] transition-colors"
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#2b3044] bg-[#0a0b10] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 transition-colors"
             title="Upload photo of paper wireframe"
           >
-            <UploadCloud className="size-3.5 text-gray-400" />
-            <span className="hidden md:inline">Upload Photo</span>
+            <UploadCloud className="size-3.5 text-indigo-400" />
+            <span className="hidden sm:inline font-mono">Photo</span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -499,7 +511,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           {/* Clear Button */}
           <button
             onClick={clearCanvas}
-            className="flex items-center gap-1 rounded-lg border border-[#2b3044] bg-[#090a0f] p-1 text-gray-400 hover:border-red-500/40 hover:text-red-400 transition-colors"
+            className="flex items-center justify-center rounded-xl border border-red-900/40 bg-red-950/20 p-2 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
             title="Clear canvas"
           >
             <Trash2 className="size-3.5" />
@@ -507,52 +519,52 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         </div>
       </div>
 
-      {/* Drawably Component Stamp Strip */}
-      <div className="flex items-center gap-1.5 border-b border-[#232738]/60 bg-[#0e1017] px-3 py-1.5 text-xs overflow-x-auto">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-gray-500 whitespace-nowrap mr-1">
+      {/* Drawably Element Stamp Bar */}
+      <div className="flex items-center gap-2 border-b border-[#232738] bg-[#0e1017] px-4 py-2 text-xs overflow-x-auto">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-gray-400 font-bold whitespace-nowrap mr-1">
           Drawably Stamps:
         </span>
         <button
           onClick={() => addStamp("button")}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#2b3044] bg-[#141722] px-2 py-0.5 text-[11px] text-gray-300 hover:border-indigo-500/60 hover:text-indigo-200 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-indigo-500/40 bg-indigo-950/30 px-3 py-1 text-xs font-mono text-indigo-200 hover:border-indigo-400 hover:bg-indigo-900/40 transition-colors whitespace-nowrap"
         >
           <Square className="size-3 text-indigo-400" /> + Button
         </button>
         <button
           onClick={() => addStamp("input")}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#2b3044] bg-[#141722] px-2 py-0.5 text-[11px] text-gray-300 hover:border-indigo-500/60 hover:text-indigo-200 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-purple-500/40 bg-purple-950/30 px-3 py-1 text-xs font-mono text-purple-200 hover:border-purple-400 hover:bg-purple-900/40 transition-colors whitespace-nowrap"
         >
           <Type className="size-3 text-purple-400" /> + Input
         </button>
         <button
           onClick={() => addStamp("card")}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#2b3044] bg-[#141722] px-2 py-0.5 text-[11px] text-gray-300 hover:border-indigo-500/60 hover:text-indigo-200 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-pink-500/40 bg-pink-950/30 px-3 py-1 text-xs font-mono text-pink-200 hover:border-pink-400 hover:bg-pink-900/40 transition-colors whitespace-nowrap"
         >
           <Layers className="size-3 text-pink-400" /> + Card Box
         </button>
         <button
           onClick={() => addStamp("badge")}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#2b3044] bg-[#141722] px-2 py-0.5 text-[11px] text-gray-300 hover:border-indigo-500/60 hover:text-indigo-200 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-emerald-500/40 bg-emerald-950/30 px-3 py-1 text-xs font-mono text-emerald-200 hover:border-emerald-400 hover:bg-emerald-900/40 transition-colors whitespace-nowrap"
         >
           <Circle className="size-3 text-emerald-400" /> + Badge
         </button>
         <button
           onClick={() => addStamp("checkbox")}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-[#2b3044] bg-[#141722] px-2 py-0.5 text-[11px] text-gray-300 hover:border-indigo-500/60 hover:text-indigo-200 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-amber-500/40 bg-amber-950/30 px-3 py-1 text-xs font-mono text-amber-200 hover:border-amber-400 hover:bg-amber-900/40 transition-colors whitespace-nowrap"
         >
-          <CheckSquare className="size-3 text-amber-400" /> + Checkbox
+          <CheckSquare className="size-3 text-amber-400" /> + Upvote
         </button>
       </div>
 
-      {/* Main Drawing Surface */}
+      {/* Main Drawing Canvas Surface */}
       <div
         ref={containerRef}
-        className="relative flex-1 w-full bg-[#0c0e15] overflow-hidden select-none"
+        className="relative flex-1 w-full bg-[#0f111a] overflow-hidden select-none"
       >
-        {/* Background Dot Matrix */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
+        {/* Subtle Graph Paper Pattern */}
+        <div className="absolute inset-0 bg-dot-matrix opacity-25 pointer-events-none" />
 
-        {/* HTML5 Canvas */}
+        {/* Smooth HTML5 Canvas */}
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
@@ -562,7 +574,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           className="touch-none-canvas size-full cursor-crosshair block"
         />
 
-        {/* Interactive Draggable Stamps Overlay */}
+        {/* Interactive Draggable Stamps */}
         {stamps.map((stamp) => (
           <div
             key={stamp.id}
@@ -595,7 +607,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               width: `${stamp.width}px`,
               height: `${stamp.height}px`,
             }}
-            className="absolute flex items-center justify-center rounded-lg border-2 border-dashed border-indigo-400 bg-indigo-950/40 font-mono text-xs text-indigo-200 cursor-move shadow-lg shadow-indigo-950/50 backdrop-blur-xs select-none"
+            className="absolute flex items-center justify-center rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-950/60 font-mono text-xs text-indigo-200 cursor-move shadow-xl backdrop-blur-xs select-none"
           >
             <span>{stamp.label}</span>
             <button
@@ -603,7 +615,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
                 e.stopPropagation();
                 setStamps((prev) => prev.filter((s) => s.id !== stamp.id));
               }}
-              className="absolute -top-2 -right-2 flex size-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white hover:bg-red-500"
+              className="absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full bg-red-600 text-xs text-white hover:bg-red-500 shadow"
               title="Remove stamp"
             >
               ✕
@@ -611,33 +623,33 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
           </div>
         ))}
 
-        {/* Canvas Empty State Guidance */}
+        {/* Empty Canvas Guidance */}
         {!hasDrawn && stamps.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-            <div className="flex size-14 items-center justify-center rounded-2xl border border-indigo-500/20 bg-indigo-950/30 text-indigo-400 mb-3 shadow-inner">
+            <div className="flex size-14 items-center justify-center rounded-2xl border-2 border-indigo-500/40 bg-indigo-950/40 text-indigo-400 mb-3 shadow-inner">
               <PenTool className="size-6" />
             </div>
-            <h4 className="text-sm font-semibold text-gray-300">
-              Draw Your UI Wireframe Here
+            <h4 className="text-base font-bold text-gray-200 font-mono">
+              Digital Napkin Sketchboard
             </h4>
-            <p className="mt-1 text-xs text-gray-500 max-w-xs">
-              Use mouse, touch, or Apple Pencil. Or click &ldquo;Try These&rdquo; above to load ready-to-compile sample napkins!
+            <p className="mt-1 text-xs text-gray-400 max-w-sm leading-relaxed">
+              Draw your wireframe freely with mouse or stylus. Click &ldquo;Try These&rdquo; above to load ready-to-test hackathon napkin presets!
             </p>
           </div>
         )}
       </div>
 
       {/* Bottom Floating Compile Action Bar */}
-      <div className="flex items-center justify-between border-t border-[#232738] bg-[#11131b] px-4 py-3">
+      <div className="flex items-center justify-between border-t-2 border-[#232738] bg-[#131520] px-4 py-3">
         <div className="flex items-center gap-2">
           {selectedPreset ? (
-            <span className="flex items-center gap-1.5 rounded-md bg-indigo-950/60 px-2 py-0.5 text-[11px] font-mono text-indigo-300 border border-indigo-800/40">
-              <Sparkles className="size-3 text-indigo-400" />
-              Preset: {selectedPreset.title}
+            <span className="flex items-center gap-1.5 rounded-lg bg-indigo-950/80 px-2.5 py-1 text-xs font-mono font-bold text-indigo-300 border border-indigo-700/60">
+              <Sparkles className="size-3.5 text-indigo-400" />
+              Active: {selectedPreset.title}
             </span>
           ) : (
-            <span className="text-[11px] text-gray-500 font-mono">
-              {hasDrawn || stamps.length > 0 ? "Ready to compile" : "Canvas empty"}
+            <span className="text-xs text-gray-400 font-mono">
+              {hasDrawn || stamps.length > 0 ? "Ready to compile" : "Sketch on canvas"}
             </span>
           )}
         </div>
@@ -646,7 +658,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
         <button
           onClick={handleCompileClick}
           disabled={isCompiling || (!hasDrawn && stamps.length === 0)}
-          className="group relative flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.02] hover:shadow-indigo-600/50 active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100"
+          className="group relative flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-2.5 text-xs font-mono font-bold text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
         >
           {isCompiling ? (
             <>
@@ -659,7 +671,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               >
                 <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
               </svg>
-              <span>Compiling with Gemma 4...</span>
+              <span>Gemma 4 Inferencing...</span>
             </>
           ) : (
             <>
@@ -673,51 +685,49 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
       {/* "Try These" Side Drawer (Game Level Selector style) */}
       {isDrawerOpen && (
         <div className="absolute inset-0 z-50 flex">
-          {/* Backdrop blur click to close */}
+          {/* Backdrop blur */}
           <div
             onClick={() => setIsDrawerOpen(false)}
-            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
           />
 
-          {/* Slide-out drawer panel on left */}
-          <div className="relative z-10 flex h-full w-full max-w-sm flex-col border-r border-[#2b3044] bg-[#0c0e15] shadow-2xl animate-in slide-in-from-left duration-250">
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between border-b border-[#232738] p-4 bg-[#11131b]">
+          {/* Drawer */}
+          <div className="relative z-10 flex h-full w-full max-w-sm flex-col border-r-2 border-[#2b3044] bg-[#0c0e15] shadow-2xl animate-in slide-in-from-left duration-250">
+            <div className="flex items-center justify-between border-b-2 border-[#232738] p-4 bg-[#131520]">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 font-mono">
                   <Sparkles className="size-4 text-indigo-400" />
                   Select A Trial Wireframe
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Pick a napkin preset to load and compile
+                  Pick a napkin sketch to load and compile
                 </p>
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
-                className="flex size-7 items-center justify-center rounded-lg border border-[#2b3044] text-gray-400 hover:text-white hover:bg-gray-800"
+                className="flex size-7 items-center justify-center rounded-lg border border-[#2b3044] text-gray-400 hover:text-white"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Vertical Carousel / Level Selector List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
-              {CANVAS_PRESETS.map((preset, index) => (
+              {CANVAS_PRESETS.map((preset) => (
                 <div
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset)}
-                  className="group relative cursor-pointer overflow-hidden rounded-xl border border-[#2b3044] bg-[#11131b] p-4 transition-all hover:border-indigo-500/60 hover:bg-[#161926] hover:shadow-xl"
+                  className="group relative cursor-pointer overflow-hidden rounded-xl border-2 border-[#2b3044] bg-[#131520] p-4 transition-all hover:border-indigo-500 hover:bg-[#1a1d2e] hover:shadow-xl"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
+                    <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-bold">
                       {preset.category}
                     </span>
-                    <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-300 border border-indigo-500/30">
+                    <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-mono font-medium text-indigo-300 border border-indigo-500/30">
                       {preset.badge}
                     </span>
                   </div>
 
-                  <h4 className="mt-1.5 text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                  <h4 className="mt-1.5 text-sm font-bold text-white group-hover:text-indigo-300 transition-colors font-mono">
                     {preset.title}
                   </h4>
 
@@ -725,7 +735,7 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
                     {preset.description}
                   </p>
 
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#232738]/60 text-[11px] text-gray-500 group-hover:text-indigo-400 font-mono">
+                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#232738] text-[11px] text-gray-500 group-hover:text-indigo-400 font-mono font-medium">
                     <span>Click to load onto board</span>
                     <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-1" />
                   </div>
@@ -733,10 +743,9 @@ export function CanvasPanel({ onCompile, isCompiling }: CanvasPanelProps) {
               ))}
             </div>
 
-            {/* Drawer Footer */}
-            <div className="border-t border-[#232738] bg-[#11131b] p-3 text-center">
-              <span className="text-[11px] text-gray-500">
-                Tip: You can draw over or add stamps to any preset!
+            <div className="border-t-2 border-[#232738] bg-[#131520] p-3 text-center">
+              <span className="text-xs text-gray-400 font-mono">
+                ✏️ Draw freely or annotate over any preset!
               </span>
             </div>
           </div>
