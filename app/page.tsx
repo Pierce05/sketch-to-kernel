@@ -227,12 +227,12 @@ export default function LandingPage() {
                 <span className="relative inline-block font-pen text-5xl sm:text-7xl text-[#2724d1]">
                   Napkin Sketches
                 </span>{" "}
-                into Tailwind Components.
+                into Web Components.
               </h1>
 
               {/* Subhead */}
               <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#52525b] max-w-2xl mx-auto">
-                Powered by <strong className="text-[#18181b]">Sketch2Kernel</strong>. Doodle on our digital napkin canvas or upload a paper wireframe photo to get an instant live sandboxed component and copyable Tailwind code.
+                Powered by <strong className="text-[#18181b]">Sketch2Kernel</strong>. Doodle on our digital napkin canvas or upload a paper wireframe photo to get an instant live sandboxed component and copyable HTML code.
               </p>
 
               {/* Primary Sketchbook Action Buttons */}
