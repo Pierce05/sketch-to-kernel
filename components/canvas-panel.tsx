@@ -1279,6 +1279,10 @@ export function CanvasPanel({
   // Dynamic compile button state
   const compileStatusText = useMemo(() => {
     if (!isCompiling) return "Compile Component →";
+    if (apiKeyMode === "custom" && compileProvider === "custom") {
+      const model = compileModelId || "Custom Endpoint";
+      return `Compiling with ${model}...`;
+    }
     const isNvidia =
       apiKeyMode === "default_2" ||
       (apiKeyMode === "custom" && compileProvider === "nvidia");

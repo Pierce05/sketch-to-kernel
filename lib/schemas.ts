@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ApiKeyModeSchema = z.enum(["default_1", "default_2", "custom"]);
-export const CustomProviderSchema = z.enum(["gemini", "nvidia"]);
+export const CustomProviderSchema = z.enum(["gemini", "nvidia", "custom"]);
 
 export const CompileRequestSchema = z
   .object({
@@ -13,6 +13,7 @@ export const CompileRequestSchema = z
     customProvider: CustomProviderSchema.optional().default("gemini"),
     customApiKey: z.string().max(512).optional(),
     customModelId: z.string().max(200).optional(),
+    customEndpoint: z.string().max(2000).optional(),
     wireframeDescription: z.string().max(50000).optional(),
   })
   .refine(
@@ -25,6 +26,18 @@ export const CompileRequestSchema = z
     {
       message: "customApiKey is required when apiKeyType is 'custom'",
       path: ["customApiKey"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.apiKeyType === "custom" && data.customProvider === "custom") {
+        return typeof data.customEndpoint === "string" && data.customEndpoint.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: "customEndpoint is required when customProvider is 'custom'",
+      path: ["customEndpoint"],
     },
   );
 

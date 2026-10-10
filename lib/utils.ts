@@ -9,3 +9,4 @@ export const STORAGE_CUSTOM_KEY = "sketch_custom_key";
 export const STORAGE_KEY_MODE = "sketch_api_key_mode";
 export const STORAGE_CUSTOM_PROVIDER = "sketch_custom_provider";
 export const STORAGE_CUSTOM_MODEL = "sketch_custom_model";
+export const STORAGE_CUSTOM_ENDPOINT = "sketch_custom_endpoint";
