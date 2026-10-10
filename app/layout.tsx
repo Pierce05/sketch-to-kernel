@@ -17,6 +17,11 @@ export const metadata: Metadata = {
     "Wireframe to Code",
     "Canvas",
   ],
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {
