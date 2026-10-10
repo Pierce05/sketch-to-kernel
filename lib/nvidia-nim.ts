@@ -12,6 +12,7 @@ export interface NvidiaCompileOptions {
   imageDataUrl: string;
   wireframeDescription?: string;
   enableThinking?: boolean;
+  enableExtraBody?: boolean;
 }
 
 export interface NvidiaCompileResult {
@@ -30,6 +31,7 @@ export async function compileWithNvidiaNim({
   imageDataUrl,
   wireframeDescription,
   enableThinking = false,
+  enableExtraBody = false,
 }: NvidiaCompileOptions): Promise<NvidiaCompileResult> {
   const cleanKey = apiKey.trim();
   // Normalize model IDs (e.g. gpt-oss-20b -> openai/gpt-oss-20b, glm-5-3 -> z-ai/glm-5.3)
@@ -106,12 +108,15 @@ export async function compileWithNvidiaNim({
       temperature: 0.1,
       max_tokens: 8192,
       stream: true,
-      extra_body: {
+    };
+
+    if (enableExtraBody) {
+      payload.extra_body = {
         chat_template_kwargs: {
           enable_thinking: Boolean(enableThinking),
         },
-      },
-    };
+      };
+    }
 
     const res = await fetch(NVIDIA_NIM_ENDPOINT, {
       method: "POST",

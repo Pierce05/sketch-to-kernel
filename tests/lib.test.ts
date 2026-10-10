@@ -121,6 +121,27 @@ describe("CompileRequestSchema", () => {
       expect(r.data.enableThinking).toBe(true);
     }
   });
+  it("defaults enableExtraBody to false when omitted", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "default_2",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.enableExtraBody).toBe(false);
+    }
+  });
+  it("accepts enableExtraBody when explicitly set to true", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "default_2",
+      enableExtraBody: true,
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.enableExtraBody).toBe(true);
+    }
+  });
 });
 
 describe("CompileOutputSchema", () => {

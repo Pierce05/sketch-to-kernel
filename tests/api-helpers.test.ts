@@ -156,7 +156,7 @@ describe("Thinking payload kwargs", () => {
     }
   });
 
-  it("sends extra_body without root chat_template_kwargs for NVIDIA NIM", async () => {
+  it("omits extra_body by default for NVIDIA NIM models", async () => {
     let capturedBody: Record<string, unknown> | undefined;
     const originalFetch = global.fetch;
     global.fetch = (async (_url: unknown, options: { body?: string }) => {
@@ -173,7 +173,7 @@ describe("Thinking payload kwargs", () => {
       const { compileWithNvidiaNim } = await import("../lib/nvidia-nim");
       await compileWithNvidiaNim({
         apiKey: "nvapi-test-key",
-        modelId: "meta/llama-3.1-70b-instruct",
+        modelId: "meta/muse-glimmer-30b",
         imageDataUrl: "data:image/png;base64,AAAA",
         wireframeDescription: "button and input wireframe",
         enableThinking: false,
@@ -181,11 +181,67 @@ describe("Thinking payload kwargs", () => {
 
       expect(capturedBody).toBeDefined();
       expect(capturedBody?.chat_template_kwargs).toBeUndefined();
+      expect(capturedBody?.extra_body).toBeUndefined();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("sends extra_body only when enableExtraBody is true for NVIDIA NIM", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    const originalFetch = global.fetch;
+    global.fetch = (async (_url: unknown, options: { body?: string }) => {
+      if (options?.body) {
+        capturedBody = JSON.parse(options.body);
+      }
+      return new Response("data: [DONE]\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    try {
+      const { compileWithNvidiaNim } = await import("../lib/nvidia-nim");
+      await compileWithNvidiaNim({
+        apiKey: "nvapi-test-key",
+        modelId: "z-ai/glm-5.3",
+        imageDataUrl: "data:image/png;base64,AAAA",
+        wireframeDescription: "button and input wireframe",
+        enableThinking: true,
+        enableExtraBody: true,
+      });
+
+      expect(capturedBody).toBeDefined();
+      expect(capturedBody?.chat_template_kwargs).toBeUndefined();
       expect(capturedBody?.extra_body).toEqual({
-        chat_template_kwargs: { enable_thinking: false },
+        chat_template_kwargs: { enable_thinking: true },
       });
     } finally {
       global.fetch = originalFetch;
     }
+  });
+});
+
+describe("isLocalhostEndpoint", () => {
+  it("detects local loopback and LAN endpoints", async () => {
+    const { isLocalhostEndpoint } = await import("../lib/utils");
+    expect(isLocalhostEndpoint("http://localhost:8000")).toBe(true);
+    expect(isLocalhostEndpoint("http://localhost:11434")).toBe(true);
+    expect(isLocalhostEndpoint("http://127.0.0.1:8000")).toBe(true);
+    expect(isLocalhostEndpoint("http://0.0.0.0:8000")).toBe(true);
+    expect(isLocalhostEndpoint("http://[::1]:8000")).toBe(true);
+    expect(isLocalhostEndpoint("http://192.168.1.25:8000")).toBe(true);
+    expect(isLocalhostEndpoint("http://10.0.0.5:11434")).toBe(true);
+    expect(isLocalhostEndpoint("localhost:8000")).toBe(true);
+    expect(isLocalhostEndpoint("127.0.0.1:8000")).toBe(true);
+  });
+
+  it("returns false for remote external domains", async () => {
+    const { isLocalhostEndpoint } = await import("../lib/utils");
+    expect(isLocalhostEndpoint("https://api.openai.com/v1")).toBe(false);
+    expect(isLocalhostEndpoint("https://integrate.api.nvidia.com")).toBe(false);
+    expect(isLocalhostEndpoint("https://openrouter.ai/api/v1")).toBe(false);
+    expect(isLocalhostEndpoint("")).toBe(false);
+    expect(isLocalhostEndpoint(undefined)).toBe(false);
   });
 });
