@@ -6,6 +6,7 @@ import { CanvasPanel } from "@/components/canvas-panel";
 import { SandboxPanel } from "@/components/sandbox-panel";
 import { CANVAS_PRESETS, CanvasPreset } from "@/components/canvas-presets";
 import { ApiKeyMode, CustomProvider, CompileRequest, CompileResponse } from "@/lib/types";
+import { compileWithCustomEndpoint } from "@/lib/custom-endpoint";
 import {
   STORAGE_CUSTOM_KEY,
   STORAGE_KEY_MODE,
@@ -18,6 +19,9 @@ import {
   STORAGE_CUSTOM_KEY_ENDPOINT,
   STORAGE_CUSTOM_MODEL_NVIDIA,
   STORAGE_CUSTOM_MODEL_ENDPOINT,
+  STORAGE_NIM_EXTRA_BODY,
+  STORAGE_CUSTOM_EXTRA_BODY_NVIDIA,
+  isLocalhostEndpoint,
 } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers, ShieldAlert } from "lucide-react";
@@ -34,6 +38,8 @@ export default function PlaygroundPage() {
   const [customModelId, setCustomModelId] = useState("meta/llama-3.1-70b-instruct");
   const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
   const [customThinking, setCustomThinking] = useState(false);
+  const [customExtraBodyNvidia, setCustomExtraBodyNvidia] = useState(false);
+  const [nimExtraBody, setNimExtraBody] = useState(false);
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);
@@ -86,6 +92,12 @@ export default function PlaygroundPage() {
       if (savedEndpoint) setCustomEndpoint(savedEndpoint);
       const savedThinking = localStorage.getItem(STORAGE_CUSTOM_THINKING);
       if (savedThinking !== null) setCustomThinking(savedThinking === "true");
+
+      const savedExtraBody = localStorage.getItem(STORAGE_CUSTOM_EXTRA_BODY_NVIDIA);
+      if (savedExtraBody !== null) setCustomExtraBodyNvidia(savedExtraBody === "true");
+
+      const savedNimExtraBody = localStorage.getItem(STORAGE_NIM_EXTRA_BODY);
+      if (savedNimExtraBody !== null) setNimExtraBody(savedNimExtraBody === "true");
     }
   }, []);
 
@@ -166,6 +178,20 @@ export default function PlaygroundPage() {
     }
   };
 
+  const handleCustomExtraBodyNvidiaChange = (enabled: boolean) => {
+    setCustomExtraBodyNvidia(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_EXTRA_BODY_NVIDIA, String(enabled));
+    }
+  };
+
+  const handleNimExtraBodyChange = (enabled: boolean) => {
+    setNimExtraBody(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_NIM_EXTRA_BODY, String(enabled));
+    }
+  };
+
   const handleCompile = async (
     imageDataUrl: string,
     selectedPreset?: CanvasPreset,
@@ -192,11 +218,70 @@ export default function PlaygroundPage() {
             : undefined)
         : undefined;
 
+    const isCustomEndpoint = apiKeyMode === "custom" && customProvider === "custom";
+    const isLocalCustom = isCustomEndpoint && isLocalhostEndpoint(customEndpoint);
+
+    // On hosted Vercel, cloud serverless functions cannot reach localhost / 127.0.0.1
+    // on the user's laptop. When a loopback/LAN endpoint is detected, execute direct
+    // client-side compilation from the user's browser where the local runner lives!
+    if (isLocalCustom) {
+      try {
+        const clientResult = await compileWithCustomEndpoint({
+          endpoint: customEndpoint || "http://127.0.0.1:8000",
+          apiKey: effectiveKey || "",
+          modelId: effectiveModel || "default",
+          imageDataUrl,
+          wireframeDescription,
+        });
+
+        if (!clientResult.success || !clientResult.data) {
+          throw new Error(clientResult.error || "Custom endpoint compilation failed");
+        }
+
+        setCompileResult(clientResult.data);
+        setIsMock(false);
+        setIsMobileDrawerOpen(true);
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+        return;
+      } catch (err: unknown) {
+        const errString = err instanceof Error ? err.message : String(err);
+        console.error("Local custom endpoint compilation failed:", errString);
+        let userMsg = errString;
+        if (
+          errString.includes("Failed to fetch") ||
+          errString.includes("NetworkError") ||
+          errString.includes("fetch failed")
+        ) {
+          userMsg =
+            `Local Endpoint Connection Failed (${customEndpoint}): ` +
+            `1) Make sure your local server (Ollama, vLLM, LM Studio) is running. ` +
+            `2) Enable CORS (for Ollama: set OLLAMA_ORIGINS="*"). ` +
+            `3) If your browser blocks HTTPS to HTTP mixed content, expose your port with an HTTPS tunnel like "cloudflared tunnel --url http://127.0.0.1:8000" or "ngrok http 8000" and use the https:// URL.`;
+        }
+        setErrorMessage(userMsg);
+        return;
+      } finally {
+        setIsCompiling(false);
+      }
+    }
+
+    const isNvidia =
+      apiKeyMode === "default_2" ||
+      (apiKeyMode === "custom" && customProvider === "nvidia");
+
+    const effectiveExtraBody =
+      apiKeyMode === "default_2" ? nimExtraBody : customExtraBodyNvidia;
+
     const payload: CompileRequest = {
       image: imageDataUrl,
       apiKeyType: apiKeyMode,
       wireframeDescription,
       enableThinking: customThinking,
+      enableExtraBody: isNvidia ? effectiveExtraBody : false,
       ...(apiKeyMode === "custom"
         ? {
             customProvider,
@@ -303,6 +388,10 @@ export default function PlaygroundPage() {
         onCustomModelNvidiaChange={handleCustomModelNvidiaChange}
         customModelEndpoint={customModelEndpoint}
         onCustomModelEndpointChange={handleCustomModelEndpointChange}
+        customExtraBodyNvidia={customExtraBodyNvidia}
+        onCustomExtraBodyNvidiaChange={handleCustomExtraBodyNvidiaChange}
+        nimExtraBody={nimExtraBody}
+        onNimExtraBodyChange={handleNimExtraBodyChange}
       />
 
       {/* Error / Rate Limit Notice Banner */}

@@ -18,6 +18,9 @@ import {
   STORAGE_CUSTOM_KEY_ENDPOINT,
   STORAGE_CUSTOM_MODEL_NVIDIA,
   STORAGE_CUSTOM_MODEL_ENDPOINT,
+  STORAGE_NIM_EXTRA_BODY,
+  STORAGE_CUSTOM_EXTRA_BODY_NVIDIA,
+  isLocalhostEndpoint,
 } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
 import {
@@ -39,6 +42,7 @@ import {
   ShieldAlert,
   Globe,
   BrainCircuit,
+  Sliders,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -64,6 +68,10 @@ interface NavbarProps {
   onCustomModelNvidiaChange?: (model: string) => void;
   customModelEndpoint?: string;
   onCustomModelEndpointChange?: (model: string) => void;
+  customExtraBodyNvidia?: boolean;
+  onCustomExtraBodyNvidiaChange?: (enabled: boolean) => void;
+  nimExtraBody?: boolean;
+  onNimExtraBodyChange?: (enabled: boolean) => void;
 }
 
 export function Navbar({
@@ -89,11 +97,17 @@ export function Navbar({
   onCustomModelNvidiaChange,
   customModelEndpoint = "gpt-4o",
   onCustomModelEndpointChange,
+  customExtraBodyNvidia = false,
+  onCustomExtraBodyNvidiaChange,
+  nimExtraBody = false,
+  onNimExtraBodyChange,
 }: NavbarProps) {
   const pathname = usePathname();
   const { navigateWithBlob } = useInkBlobRouter();
   const [mounted, setMounted] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [showNimKey2Modal, setShowNimKey2Modal] = useState(false);
+  const [isNimKey2Saved, setIsNimKey2Saved] = useState(false);
 
   // Modal draft state - separate per tab
   const [activeTab, setActiveTab] = useState<CustomProvider>(customProvider);
@@ -104,6 +118,8 @@ export function Navbar({
   const [endpointModel, setEndpointModel] = useState(customModelEndpoint || "gpt-4o");
   const [tempEndpoint, setTempEndpoint] = useState(customEndpoint || "https://api.openai.com/v1/chat/completions");
   const [tempThinking, setTempThinking] = useState(customThinking);
+  const [tempExtraBodyNvidia, setTempExtraBodyNvidia] = useState(customExtraBodyNvidia);
+  const [tempNimExtraBody, setTempNimExtraBody] = useState(nimExtraBody);
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -121,6 +137,8 @@ export function Navbar({
     setEndpointModel(customModelEndpoint || "gpt-4o");
     setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
     setTempThinking(customThinking);
+    setTempExtraBodyNvidia(customExtraBodyNvidia);
+    setTempNimExtraBody(nimExtraBody);
   }, [
     customApiKey,
     customProvider,
@@ -131,6 +149,8 @@ export function Navbar({
     customModelEndpoint,
     customEndpoint,
     customThinking,
+    customExtraBodyNvidia,
+    nimExtraBody,
   ]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
@@ -144,6 +164,7 @@ export function Navbar({
       setEndpointModel(customModelEndpoint || "gpt-4o");
       setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
       setTempThinking(customThinking);
+      setTempExtraBodyNvidia(customExtraBodyNvidia);
       setShowKeyModal(true);
     } else {
       onApiKeyModeChange(mode);
@@ -199,6 +220,7 @@ export function Navbar({
       onCustomModelIdChange?.(activeModel);
       onCustomEndpointChange?.(trimmedEndpoint);
       onCustomThinkingChange?.(tempThinking);
+      onCustomExtraBodyNvidiaChange?.(tempExtraBodyNvidia);
       onApiKeyModeChange("custom");
 
       if (typeof window !== "undefined") {
@@ -213,6 +235,7 @@ export function Navbar({
         localStorage.setItem(STORAGE_CUSTOM_MODEL, activeModel);
         localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, trimmedEndpoint);
         localStorage.setItem(STORAGE_CUSTOM_THINKING, String(tempThinking));
+        localStorage.setItem(STORAGE_CUSTOM_EXTRA_BODY_NVIDIA, String(tempExtraBodyNvidia));
         localStorage.setItem(STORAGE_KEY_MODE, "custom");
       }
 
@@ -224,6 +247,21 @@ export function Navbar({
     } else {
       handleCloseModal();
     }
+  };
+
+  const handleSaveNimKey2Settings = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    onNimExtraBodyChange?.(tempNimExtraBody);
+    onCustomThinkingChange?.(tempThinking);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_NIM_EXTRA_BODY, String(tempNimExtraBody));
+      localStorage.setItem(STORAGE_CUSTOM_THINKING, String(tempThinking));
+    }
+    setIsNimKey2Saved(true);
+    setTimeout(() => {
+      setIsNimKey2Saved(false);
+      setShowNimKey2Modal(false);
+    }, 500);
   };
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
@@ -281,18 +319,34 @@ export function Navbar({
             </SketchOptionButton>
 
             {/* Key 2: NVIDIA NIM (z-ai/glm-5.3) */}
-            <SketchOptionButton
-              type="button"
-              active={apiKeyMode === "default_2"}
-              activeFill="#059669"
-              activeStroke="#059669"
-              onClick={() => handleModeSelect("default_2")}
-              title="Key 2: NVIDIA NIM (Model: z-ai/glm-5.3 • 39 RPM rate limited)"
-              className="px-2.5 sm:px-3 py-1"
-            >
-              <span>Key 2</span>
-              <span className="text-[10px] opacity-75 hidden md:inline">(NIM)</span>
-            </SketchOptionButton>
+            <div className="relative inline-flex items-center">
+              <SketchOptionButton
+                type="button"
+                active={apiKeyMode === "default_2"}
+                activeFill="#059669"
+                activeStroke="#059669"
+                onClick={() => handleModeSelect("default_2")}
+                title="Key 2: NVIDIA NIM (Model: z-ai/glm-5.3 • 39 RPM rate limited)"
+                className="px-2.5 sm:px-3 py-1 pr-6"
+              >
+                <span>Key 2</span>
+                <span className="text-[10px] opacity-75 hidden md:inline">(NIM)</span>
+              </SketchOptionButton>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNimKey2Modal(true);
+                }}
+                className={`absolute right-1 size-4.5 flex items-center justify-center rounded transition-all hover:bg-black/10 active:scale-90 ${
+                  apiKeyMode === "default_2" ? "text-white" : "text-[#18181b]"
+                }`}
+                title="Key 2 NVIDIA NIM Settings (extra_body & thinking kwargs)"
+                aria-label="Key 2 NIM settings"
+              >
+                <Sliders className="size-3" />
+              </button>
+            </div>
 
             {/* Custom: Tabbed Gemini or NVIDIA NIM */}
             <SketchOptionButton
@@ -469,40 +523,50 @@ export function Navbar({
                       </div>
                     </div>
 
-                    {/* Model Thinking Toggle */}
-                    <div className="flex items-center justify-between rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`flex size-7 items-center justify-center rounded-lg border border-[#18181b] ${
-                            tempThinking ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-500"
-                          }`}
-                        >
-                          <BrainCircuit className="size-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
-                          <div className="text-[10px] text-[#71717a] font-mono">
-                            {tempThinking
-                              ? "Enabled (chat_template_kwargs.enable_thinking: true)"
-                              : "Disabled (chat_template_kwargs.enable_thinking: false)"}
+                    {/* Extra Body Checkbox for NVIDIA NIM */}
+                    <div className="rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3 space-y-2.5">
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={tempExtraBodyNvidia}
+                          onChange={(e) => setTempExtraBodyNvidia(e.target.checked)}
+                          className="mt-0.5 size-4 rounded border-2 border-[#18181b] text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                        />
+                        <div className="flex-1">
+                          <div className="text-xs font-mono font-bold text-[#18181b]">
+                            Enable extra_body parameter
+                          </div>
+                          <div className="text-[10px] text-[#71717a] font-mono leading-tight">
+                            Includes extra_body kwargs in API payload. Keep disabled if your NIM model (e.g. meta/muse-glimmer-30b) rejects extra_body with HTTP 400 validation error.
                           </div>
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={tempThinking}
-                        onClick={() => setTempThinking(!tempThinking)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
-                          tempThinking ? "bg-emerald-500" : "bg-zinc-200"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block size-4.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
-                            tempThinking ? "translate-x-5" : "translate-x-0.5"
-                          }`}
-                        />
-                      </button>
+                      </label>
+
+                      {tempExtraBodyNvidia && (
+                        <div className="flex items-center justify-between pt-2 border-t border-[#18181b]/10 pl-6">
+                          <div>
+                            <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
+                            <div className="text-[10px] text-[#71717a] font-mono">
+                              chat_template_kwargs.enable_thinking: {tempThinking ? "true" : "false"}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={tempThinking}
+                            onClick={() => setTempThinking(!tempThinking)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
+                              tempThinking ? "bg-emerald-500" : "bg-zinc-200"
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block size-3.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
+                                tempThinking ? "translate-x-4" : "translate-x-0.5"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Strict 39 RPM Metric notice */}
@@ -532,6 +596,16 @@ export function Navbar({
                         OpenAI-compatible URL (e.g. Ollama, vLLM, OpenRouter, Groq, OpenAI).
                       </p>
                     </div>
+
+                    {/* Localhost Detection Notice */}
+                    {isLocalhostEndpoint(tempEndpoint) && (
+                      <div className="rounded-xl border border-blue-300 bg-blue-50/80 p-2.5 text-xs text-blue-950 flex items-start gap-2">
+                        <Globe className="size-4 text-blue-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-tight">
+                          <strong>Localhost Endpoint Detected:</strong> On hosted Vercel, requests connect directly from your browser to your local runner (Ollama, vLLM, LM Studio). Ensure your local server allows CORS (e.g. <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">OLLAMA_ORIGINS=&quot;*&quot;</code>) or use an HTTPS tunnel (<code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">cloudflared</code> or <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">ngrok</code>).
+                        </div>
+                      </div>
+                    )}
 
                     {/* Model ID Input */}
                     <div>
@@ -598,6 +672,123 @@ export function Navbar({
                       </>
                     ) : (
                       "Save Key"
+                    )}
+                  </SketchButton>
+                </div>
+              </form>
+            </SketchCard>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Key 2 NIM Settings Modal: Rendered via Portal to body */}
+      {showNimKey2Modal && mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 sm:p-6 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
+          <div className="my-auto w-full max-w-md max-h-[88vh] overflow-y-auto">
+            <SketchCard
+              roughness={1.5}
+              stroke="#18181b"
+              fill="#ffffff"
+              className="p-5 sm:p-6 shadow-2xl rounded-2xl"
+            >
+              {/* Modal Top Bar */}
+              <div className="flex items-center justify-between border-b-2 border-[#18181b] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg border-2 border-[#059669] bg-emerald-50 text-[#059669]">
+                    <Cpu className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold font-mono text-[#18181b]">Key 2: NVIDIA NIM Settings</h3>
+                    <p className="text-xs text-[#52525b]">Model: z-ai/glm-5.3 • Microservice Options</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNimKey2Modal(false)}
+                  className="flex size-7 items-center justify-center rounded-lg border border-[#18181b] text-[#52525b] hover:text-[#18181b] hover:bg-[#f5f4ee]"
+                  title="Close settings"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveNimKey2Settings} className="mt-4 space-y-4">
+                <div className="space-y-3">
+                  {/* Strict 39 RPM notice */}
+                  <div className="rounded-xl border border-emerald-300 bg-emerald-50/70 p-2.5 text-xs text-emerald-900 flex items-start gap-2">
+                    <ShieldAlert className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="text-[11px] leading-tight">
+                      <strong>Strict 39 RPM Rate Limiter:</strong> Key 2 requests run through a sliding 60-second window to prevent 429 quota exhaustion.
+                    </div>
+                  </div>
+
+                  {/* Extra Body Checkbox */}
+                  <div className="rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3 space-y-2.5">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tempNimExtraBody}
+                        onChange={(e) => setTempNimExtraBody(e.target.checked)}
+                        className="mt-0.5 size-4 rounded border-2 border-[#18181b] text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                      />
+                      <div className="flex-1">
+                        <div className="text-xs font-mono font-bold text-[#18181b]">
+                          Enable extra_body parameter
+                        </div>
+                        <div className="text-[10px] text-[#71717a] font-mono leading-tight">
+                          Includes extra_body kwargs in API payload. Keep disabled if your NIM model rejects extra_body with HTTP 400 validation error.
+                        </div>
+                      </div>
+                    </label>
+
+                    {tempNimExtraBody && (
+                      <div className="flex items-center justify-between pt-2 border-t border-[#18181b]/10 pl-6">
+                        <div>
+                          <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
+                          <div className="text-[10px] text-[#71717a] font-mono">
+                            chat_template_kwargs.enable_thinking: {tempThinking ? "true" : "false"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={tempThinking}
+                          onClick={() => setTempThinking(!tempThinking)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
+                            tempThinking ? "bg-emerald-500" : "bg-zinc-200"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block size-3.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
+                              tempThinking ? "translate-x-4" : "translate-x-0.5"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#18181b]/10">
+                  <SketchButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowNimKey2Modal(false)}
+                    className="text-xs py-1.5 px-3.5"
+                  >
+                    Cancel
+                  </SketchButton>
+                  <SketchButton
+                    type="submit"
+                    variant="primary"
+                    className="text-xs py-1.5 px-4"
+                  >
+                    {isNimKey2Saved ? (
+                      <>
+                        <Check className="size-3.5 text-emerald-300" /> Saved
+                      </>
+                    ) : (
+                      "Save Settings"
                     )}
                   </SketchButton>
                 </div>

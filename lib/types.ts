@@ -9,6 +9,7 @@ export interface CompileRequest {
   customModelId?: string; // Sent for NVIDIA NIM or custom model
   customEndpoint?: string; // Sent when customProvider === "custom"
   enableThinking?: boolean; // Controls chat_template_kwargs.enable_thinking for NIM and custom models
+  enableExtraBody?: boolean; // Controls whether extra_body is included for NIM models
   wireframeDescription?: string; // Semantic wireframe element layout description
 }
 
