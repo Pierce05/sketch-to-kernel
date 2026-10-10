@@ -608,38 +608,14 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* SHOWCASE MEDIA CONTAINER
-                        USER INSTRUCTION: To use your own recorded GIF or screenshot,
-                        add your file to public/assets/ (e.g. public/assets/showcase-canvas.gif)
-                        and replace the placeholder below with an <img> tag:
-                        <img src="/assets/showcase-canvas.gif" alt="Canvas in action" className="w-full rounded-2xl border-2 border-[#18181b]" />
-                    */}
-                    <div className="relative rounded-2xl border-2 border-dashed border-[#2724d1] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
-                      {/* Interactive Visual Mock / Drop-in Placeholder */}
-                      <div className="max-w-md space-y-4">
-                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#2724d1] bg-white text-[#2724d1] shadow-md">
-                          <PenTool className="size-7" />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-bold text-[#18181b] font-mono">
-                            Digital Canvas &amp; Wireframe Stamps
-                          </h4>
-                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
-                            Draw cards, buttons, navbars, and forms directly on authentic notebook paper, or drop a paper napkin photo to compile immediately.
-                          </p>
-                        </div>
-                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-[#2724d1] font-bold">
-                            Touch + Stylus Ready
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
-                            60fps Stroke Engine
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-purple-700 font-bold">
-                            Lossless PNG Export
-                          </span>
-                        </div>
-                      </div>
+                    {/* SHOWCASE MEDIA CONTAINER: Canvas GIF */}
+                    <div className="relative rounded-2xl border-2 border-[#18181b] overflow-hidden bg-black/5 shadow-md">
+                      <img
+                        src="/assets/canvas.gif"
+                        alt="Tactile Digital Sketchbook in action"
+                        className="w-full h-auto object-cover max-h-[540px] rounded-2xl"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
                 )}
@@ -663,34 +639,14 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* SHOWCASE MEDIA CONTAINER
-                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-models.gif
-                    */}
-                    <div className="relative rounded-2xl border-2 border-dashed border-[#7c3aed] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
-                      <div className="max-w-md space-y-4">
-                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#7c3aed] bg-white text-[#7c3aed] shadow-md">
-                          <Cpu className="size-7" />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-bold text-[#18181b] font-mono">
-                            Multi-Provider Orchestration
-                          </h4>
-                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
-                            Toggle between Gemini Gemma 4 31B, NVIDIA NIM glm-5.3, or private local LLMs. Deep reasoning thinking toggles and sliding-window rate limiters prevent API exhaustion.
-                          </p>
-                        </div>
-                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-purple-700 font-bold">
-                            Gemini 29 RPM Limiter
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
-                            NVIDIA 39 RPM Limiter
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
-                            Custom OpenAI URL
-                          </span>
-                        </div>
-                      </div>
+                    {/* SHOWCASE MEDIA CONTAINER: Compile GIF */}
+                    <div className="relative rounded-2xl border-2 border-[#18181b] overflow-hidden bg-black/5 shadow-md">
+                      <img
+                        src="/assets/compile.gif"
+                        alt="Multi-Engine AI Synthesis in action"
+                        className="w-full h-auto object-cover max-h-[540px] rounded-2xl"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
                 )}
@@ -714,34 +670,14 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* SHOWCASE MEDIA CONTAINER
-                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-sandbox.gif
-                    */}
-                    <div className="relative rounded-2xl border-2 border-dashed border-[#188a42] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
-                      <div className="max-w-md space-y-4">
-                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#188a42] bg-white text-[#188a42] shadow-md">
-                          <Eye className="size-7" />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-bold text-[#18181b] font-mono">
-                            Zero-Latency Tailwind Compilation
-                          </h4>
-                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
-                            Watch synthesized UI execute securely in an isolated runner with viewport switching, instant one-click code export, and confetti celebration on first render!
-                          </p>
-                        </div>
-                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
-                            Mobile / Tablet / Desktop
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
-                            Copy HTML / JSX
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-zinc-700 font-bold">
-                            Full-Screen Mode
-                          </span>
-                        </div>
-                      </div>
+                    {/* SHOWCASE MEDIA CONTAINER: Sandbox GIF */}
+                    <div className="relative rounded-2xl border-2 border-[#18181b] overflow-hidden bg-black/5 shadow-md">
+                      <img
+                        src="/assets/sandbox.gif"
+                        alt="Live Sandboxed Tailwind & Props in action"
+                        className="w-full h-auto object-cover max-h-[540px] rounded-2xl"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
                 )}
@@ -752,7 +688,7 @@ export default function LandingPage() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
                       <div>
                         <h3 className="text-lg font-bold font-mono text-[#18181b]">
-                          Two-Way Dynamic Props Panel
+                          Two-Way Dynamic Props Panel &amp; Workbench
                         </h3>
                         <p className="text-xs text-[#52525b] mt-0.5">
                           Synthesized components expose interactive text, color, and numeric properties that re-render live on keyup.
@@ -765,34 +701,14 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* SHOWCASE MEDIA CONTAINER
-                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-props.gif
-                    */}
-                    <div className="relative rounded-2xl border-2 border-dashed border-[#d12724] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
-                      <div className="max-w-md space-y-4">
-                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#d12724] bg-white text-[#d12724] shadow-md">
-                          <Sliders className="size-7" />
-                        </div>
-                        <div>
-                          <h4 className="text-base font-bold text-[#18181b] font-mono">
-                            Live Interactive Tuning
-                          </h4>
-                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
-                            No re-compilation needed! Edit headline copy, tweak button labels, change prices, or adjust badge styles in real time directly inside the Props panel.
-                          </p>
-                        </div>
-                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-red-700 font-bold">
-                            Live Two-Way Binding
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
-                            Zod Schema Validated
-                          </span>
-                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
-                            Instant State Update
-                          </span>
-                        </div>
-                      </div>
+                    {/* SHOWCASE MEDIA CONTAINER: Playground Workbench Screenshot */}
+                    <div className="relative rounded-2xl border-2 border-[#18181b] overflow-hidden bg-black/5 shadow-md">
+                      <img
+                        src="/assets/playground.png"
+                        alt="Interactive Workbench in action"
+                        className="w-full h-auto object-cover max-h-[540px] rounded-2xl"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
                 )}

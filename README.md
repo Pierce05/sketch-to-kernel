@@ -35,8 +35,13 @@
 
 ## Demonstration
 
-<!-- DROP YOUR OVERVIEW GIF HERE: assets/demo-overview.gif -->
-![Sketch2Kernel Full Pipeline Overview](assets/demo-overview.gif)
+<p align="center">
+  <img src="assets/main_page.png" alt="Sketch2Kernel Landing Experience" width="100%" />
+</p>
+
+<p align="center">
+  <img src="assets/playground.png" alt="Sketch2Kernel Interactive Drawing Board & Sandbox" width="100%" />
+</p>
 
 ---
 
@@ -82,8 +87,9 @@ flowchart TD
 
 ### 1. Digital Napkin Sketchboard
 
-<!-- DROP YOUR CANVAS GIF HERE: assets/demo-canvas.gif -->
-![Interactive Sketchboard](assets/demo-canvas.gif)
+<p align="center">
+  <img src="assets/canvas.gif" alt="Interactive Sketchboard in Action" width="100%" />
+</p>
 
 - **Continuous 60fps Freehand Pen**: Low-latency drawing engine with ballpoint blue, carbon black, crimson red, and forest green ink palettes, complete with variable stroke widths.
 - **Interactive Geometric Shapes**: Draw Rectangles and Circles with **8-point precision resize handles** (NW, N, NE, E, SE, S, SW, W) and border/body movement.
@@ -115,8 +121,9 @@ flowchart TD
 
 ### 2. Multi-Engine AI Orchestration
 
-<!-- DROP YOUR COMPILATION GIF HERE: assets/demo-compilation.gif -->
-![Multi-Engine AI Compilation](assets/demo-compilation.gif)
+<p align="center">
+  <img src="assets/compile.gif" alt="Multi-Engine AI Compilation in Action" width="100%" />
+</p>
 
 Sketch2Kernel provides three independent compilation engines with separated credential management and dedicated model configuration:
 
@@ -169,8 +176,9 @@ Large language models return code in varied formats depending on prompt dynamics
 
 ### 5. Live Interactive Sandbox Runner
 
-<!-- DROP YOUR SANDBOX GIF HERE: assets/demo-sandbox.gif -->
-![Live Sandboxed Tailwind & Props](assets/demo-sandbox.gif)
+<p align="center">
+  <img src="assets/sandbox.gif" alt="Live Sandboxed Tailwind & Props in Action" width="100%" />
+</p>
 
 - **Isolated Tailwind Sandbox**: Renders compiled components inside an isolated iframe powered by the official Tailwind Play CDN.
 - **Real-Time Two-Way Props Table**:
