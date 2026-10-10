@@ -81,7 +81,7 @@ export function Navbar({
   onCustomApiKeyChange,
   customProvider = "gemini",
   onCustomProviderChange,
-  customModelId = "meta/llama-3.1-70b-instruct",
+  customModelId = "z-ai/glm-5.3-flash",
   onCustomModelIdChange,
   customEndpoint = "https://api.openai.com/v1/chat/completions",
   onCustomEndpointChange,
@@ -93,7 +93,7 @@ export function Navbar({
   onCustomKeyNvidiaChange,
   customKeyEndpoint = "",
   onCustomKeyEndpointChange,
-  customModelNvidia = "meta/llama-3.1-70b-instruct",
+  customModelNvidia = "z-ai/glm-5.3-flash",
   onCustomModelNvidiaChange,
   customModelEndpoint = "gpt-4o",
   onCustomModelEndpointChange,
@@ -114,7 +114,7 @@ export function Navbar({
   const [geminiKey, setGeminiKey] = useState(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
   const [nvidiaKey, setNvidiaKey] = useState(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
   const [endpointKey, setEndpointKey] = useState(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
-  const [nvidiaModel, setNvidiaModel] = useState(customModelNvidia || "meta/llama-3.1-70b-instruct");
+  const [nvidiaModel, setNvidiaModel] = useState(customModelNvidia || "z-ai/glm-5.3-flash");
   const [endpointModel, setEndpointModel] = useState(customModelEndpoint || "gpt-4o");
   const [tempEndpoint, setTempEndpoint] = useState(customEndpoint || "https://api.openai.com/v1/chat/completions");
   const [tempThinking, setTempThinking] = useState(customThinking);
@@ -133,7 +133,7 @@ export function Navbar({
     setGeminiKey(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
     setNvidiaKey(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
     setEndpointKey(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
-    setNvidiaModel(customModelNvidia || "meta/llama-3.1-70b-instruct");
+    setNvidiaModel(customModelNvidia || "z-ai/glm-5.3-flash");
     setEndpointModel(customModelEndpoint || "gpt-4o");
     setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
     setTempThinking(customThinking);
@@ -160,7 +160,7 @@ export function Navbar({
       setGeminiKey(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
       setNvidiaKey(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
       setEndpointKey(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
-      setNvidiaModel(customModelNvidia || "meta/llama-3.1-70b-instruct");
+      setNvidiaModel(customModelNvidia || "z-ai/glm-5.3-flash");
       setEndpointModel(customModelEndpoint || "gpt-4o");
       setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
       setTempThinking(customThinking);
@@ -190,7 +190,7 @@ export function Navbar({
     const trimmedGeminiKey = geminiKey.trim();
     const trimmedNvidiaKey = nvidiaKey.trim();
     const trimmedEndpointKey = endpointKey.trim();
-    const trimmedNvidiaModel = nvidiaModel.trim() || "meta/llama-3.1-70b-instruct";
+    const trimmedNvidiaModel = nvidiaModel.trim() || "z-ai/glm-5.3-flash";
     const trimmedEndpointModel = endpointModel.trim() || "gpt-4o";
     const trimmedEndpoint = tempEndpoint.trim() || "https://api.openai.com/v1/chat/completions";
 
@@ -329,7 +329,8 @@ export function Navbar({
                 title="NVIDIA NIM (Model: z-ai/glm-5.3 • 39 RPM rate limited)"
                 className="px-2.5 sm:px-3 py-1 pr-6"
               >
-                <span>(NIM)</span>
+                <span>Key 2</span>
+                <span className="text-[10px] opacity-75 hidden md:inline">(NIM)</span>
               </SketchOptionButton>
               <button
                 type="button"
@@ -491,11 +492,11 @@ export function Navbar({
                         type="text"
                         value={nvidiaModel}
                         onChange={(e) => setNvidiaModel(e.target.value)}
-                        placeholder="meta/llama-3.1-70b-instruct"
+                        placeholder="z-ai/glm-5.3-flash"
                         className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#059669] focus:outline-none"
                       />
                       <p className="mt-1 text-[11px] text-[#71717a] font-mono">
-                        Target model (e.g. <code className="text-[#059669] font-bold">meta/llama-3.1-70b-instruct</code>, <code className="text-[#059669] font-bold">meta/llama-3.3-70b-instruct</code>, or deepseek-ai/deepseek-r1).
+                        Target model (e.g. <code className="text-[#059669] font-bold">z-ai/glm-5.3-flash</code>, <code className="text-[#059669] font-bold">meta/llama-3.3-70b-instruct</code>, or deepseek-ai/deepseek-r1).
                       </p>
                     </div>
 
