@@ -180,9 +180,9 @@ describe("Thinking payload kwargs", () => {
       });
 
       expect(capturedBody).toBeDefined();
-      expect(capturedBody?.chat_template_kwargs).toBeUndefined();
-      expect(capturedBody?.extra_body).toEqual({
-        chat_template_kwargs: { enable_thinking: false },
+      expect(capturedBody?.extra_body).toBeUndefined();
+      expect(capturedBody?.chat_template_kwargs).toEqual({
+        enable_thinking: false,
       });
     } finally {
       global.fetch = originalFetch;
