@@ -125,7 +125,7 @@ describe("normalizeEndpointUrl", () => {
 });
 
 describe("Thinking payload kwargs", () => {
-  it("sends chat_template_kwargs without extra_body for custom endpoint", async () => {
+  it("does not send chat_template_kwargs or extra_body for custom endpoint", async () => {
     let capturedBody: Record<string, unknown> | undefined;
     const originalFetch = global.fetch;
     global.fetch = (async (_url: unknown, options: { body?: string }) => {
@@ -145,18 +145,18 @@ describe("Thinking payload kwargs", () => {
         apiKey: "test-key",
         modelId: "gpt-4o",
         imageDataUrl: "data:image/png;base64,AAAA",
-        enableThinking: true,
       });
 
       expect(capturedBody).toBeDefined();
-      expect(capturedBody?.chat_template_kwargs).toEqual({ enable_thinking: true });
+      expect(capturedBody?.chat_template_kwargs).toBeUndefined();
       expect(capturedBody?.extra_body).toBeUndefined();
+      expect(capturedBody?.model).toBe("gpt-4o");
     } finally {
       global.fetch = originalFetch;
     }
   });
 
-  it("sends both chat_template_kwargs and extra_body for NVIDIA NIM", async () => {
+  it("sends extra_body without root chat_template_kwargs for NVIDIA NIM", async () => {
     let capturedBody: Record<string, unknown> | undefined;
     const originalFetch = global.fetch;
     global.fetch = (async (_url: unknown, options: { body?: string }) => {
@@ -180,7 +180,7 @@ describe("Thinking payload kwargs", () => {
       });
 
       expect(capturedBody).toBeDefined();
-      expect(capturedBody?.chat_template_kwargs).toEqual({ enable_thinking: false });
+      expect(capturedBody?.chat_template_kwargs).toBeUndefined();
       expect(capturedBody?.extra_body).toEqual({
         chat_template_kwargs: { enable_thinking: false },
       });

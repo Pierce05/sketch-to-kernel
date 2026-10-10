@@ -106,9 +106,6 @@ export async function compileWithNvidiaNim({
       temperature: 0.1,
       max_tokens: 8192,
       stream: true,
-      chat_template_kwargs: {
-        enable_thinking: Boolean(enableThinking),
-      },
       extra_body: {
         chat_template_kwargs: {
           enable_thinking: Boolean(enableThinking),

@@ -136,7 +136,6 @@ export async function POST(req: NextRequest) {
         modelId,
         imageDataUrl: image,
         wireframeDescription,
-        enableThinking,
       });
 
       if (!customResult.success) {
