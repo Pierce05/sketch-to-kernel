@@ -9,13 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16.4-black?style=flat&logo=next.js" alt="Next.js" /></a>
-  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.3-blue?style=flat&logo=react" alt="React" /></a>
-  <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components"><img src="https://img.shields.io/badge/Web_Components-HTML5%20%7C%20CSS-38bdf8?style=flat&logo=html5" alt="Web Components" /></a>
   <a href="https://deepmind.google/technologies/gemma/"><img src="https://img.shields.io/badge/Google_Gemma_4-26B%20%2F%2031B-4285F4?style=flat&logo=google" alt="Google Gemma" /></a>
-  <a href="https://build.nvidia.com"><img src="https://img.shields.io/badge/NVIDIA_NIM-GLM--5.3%20%7C%20LLaMA--3.1--70B-76B900?style=flat&logo=nvidia" alt="NVIDIA NIM" /></a>
-  <a href="https://roughjs.com"><img src="https://img.shields.io/badge/Aesthetic-Rough.js-orange?style=flat" alt="Rough.js" /></a>
-  <a href="https://vitest.dev"><img src="https://img.shields.io/badge/Tests-45%2F45%20Passing-brightgreen?style=flat&logo=vitest" alt="Vitest Tests" /></a>
+  <a href="https://build.nvidia.com"><img src="https://img.shields.io/badge/NVIDIA_NIM-OpenSource_Models-76B900?style=flat&logo=nvidia" alt="NVIDIA NIM" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat" alt="License: MIT" /></a>
 </p>
 
