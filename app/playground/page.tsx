@@ -11,6 +11,7 @@ import {
   STORAGE_KEY_MODE,
   STORAGE_CUSTOM_PROVIDER,
   STORAGE_CUSTOM_MODEL,
+  STORAGE_CUSTOM_ENDPOINT,
 } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers, ShieldAlert } from "lucide-react";
@@ -20,6 +21,7 @@ export default function PlaygroundPage() {
   const [customApiKey, setCustomApiKey] = useState("");
   const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
   const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
+  const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);
@@ -40,6 +42,8 @@ export default function PlaygroundPage() {
       if (savedProvider) setCustomProvider(savedProvider);
       const savedModel = localStorage.getItem(STORAGE_CUSTOM_MODEL);
       if (savedModel) setCustomModelId(savedModel);
+      const savedEndpoint = localStorage.getItem(STORAGE_CUSTOM_ENDPOINT);
+      if (savedEndpoint) setCustomEndpoint(savedEndpoint);
     }
   }, []);
 
@@ -71,6 +75,13 @@ export default function PlaygroundPage() {
     }
   };
 
+  const handleCustomEndpointChange = (endpoint: string) => {
+    setCustomEndpoint(endpoint);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, endpoint);
+    }
+  };
+
   const handleCompile = async (
     imageDataUrl: string,
     selectedPreset?: CanvasPreset,
@@ -78,10 +89,6 @@ export default function PlaygroundPage() {
   ) => {
     setIsCompiling(true);
     setErrorMessage(null);
-
-    const isNvidia =
-      apiKeyMode === "default_2" ||
-      (apiKeyMode === "custom" && customProvider === "nvidia");
 
     const payload: CompileRequest = {
       image: imageDataUrl,
@@ -92,6 +99,7 @@ export default function PlaygroundPage() {
             customProvider,
             customApiKey: customApiKey || undefined,
             customModelId: customModelId || undefined,
+            customEndpoint: customEndpoint || undefined,
           }
         : {}),
     };
@@ -128,9 +136,12 @@ export default function PlaygroundPage() {
     } catch (err: unknown) {
       const errString = err instanceof Error ? err.message : String(err);
 
-      // For NVIDIA NIM: strictly NO fallback to mock, only error handling!
-      if (isNvidia) {
-        console.error("NVIDIA NIM Compilation failed:", errString);
+      // For NVIDIA NIM or Custom Endpoint: strictly NO fallback to mock, only clear error handling!
+      const isCustomOrNvidia =
+        apiKeyMode === "default_2" ||
+        (apiKeyMode === "custom" && (customProvider === "nvidia" || customProvider === "custom"));
+      if (isCustomOrNvidia) {
+        console.error("Compilation failed:", errString);
         setErrorMessage(errString);
         return;
       }
@@ -175,6 +186,8 @@ export default function PlaygroundPage() {
         onCustomProviderChange={handleCustomProviderChange}
         customModelId={customModelId}
         onCustomModelIdChange={handleCustomModelIdChange}
+        customEndpoint={customEndpoint}
+        onCustomEndpointChange={handleCustomEndpointChange}
       />
 
       {/* Error / Rate Limit Notice Banner */}

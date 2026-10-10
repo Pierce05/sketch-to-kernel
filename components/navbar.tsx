@@ -9,6 +9,7 @@ import {
   STORAGE_KEY_MODE,
   STORAGE_CUSTOM_PROVIDER,
   STORAGE_CUSTOM_MODEL,
+  STORAGE_CUSTOM_ENDPOINT,
 } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
 import {
@@ -28,6 +29,7 @@ import {
   Cpu,
   Sparkles,
   ShieldAlert,
+  Globe,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -39,6 +41,8 @@ interface NavbarProps {
   onCustomProviderChange?: (provider: CustomProvider) => void;
   customModelId?: string;
   onCustomModelIdChange?: (model: string) => void;
+  customEndpoint?: string;
+  onCustomEndpointChange?: (endpoint: string) => void;
 }
 
 export function Navbar({
@@ -50,6 +54,8 @@ export function Navbar({
   onCustomProviderChange,
   customModelId = "z-ai/glm-5.3",
   onCustomModelIdChange,
+  customEndpoint = "https://api.openai.com/v1/chat/completions",
+  onCustomEndpointChange,
 }: NavbarProps) {
   const pathname = usePathname();
   const { navigateWithBlob } = useInkBlobRouter();
@@ -60,6 +66,7 @@ export function Navbar({
   const [activeTab, setActiveTab] = useState<CustomProvider>(customProvider);
   const [tempKey, setTempKey] = useState(customApiKey);
   const [tempModel, setTempModel] = useState(customModelId || "z-ai/glm-5.3");
+  const [tempEndpoint, setTempEndpoint] = useState(customEndpoint || "https://api.openai.com/v1/chat/completions");
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -72,7 +79,8 @@ export function Navbar({
     setTempKey(customApiKey);
     setActiveTab(customProvider);
     setTempModel(customModelId || "z-ai/glm-5.3");
-  }, [customApiKey, customProvider, customModelId]);
+    setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
+  }, [customApiKey, customProvider, customModelId, customEndpoint]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
     if (mode === "custom") {
@@ -80,6 +88,7 @@ export function Navbar({
       setActiveTab(customProvider);
       setTempKey(customApiKey);
       setTempModel(customModelId || "z-ai/glm-5.3");
+      setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
       setShowKeyModal(true);
     } else {
       onApiKeyModeChange(mode);
@@ -97,18 +106,21 @@ export function Navbar({
   const handleSaveCustomKey = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmedKey = tempKey.trim();
-    const trimmedModel = tempModel.trim() || "z-ai/glm-5.3";
+    const trimmedModel = tempModel.trim() || (activeTab === "custom" ? "gpt-4o" : "z-ai/glm-5.3");
+    const trimmedEndpoint = tempEndpoint.trim() || "https://api.openai.com/v1/chat/completions";
 
-    if (trimmedKey) {
+    if (activeTab === "custom" ? trimmedEndpoint : trimmedKey) {
       onCustomApiKeyChange(trimmedKey);
       onCustomProviderChange?.(activeTab);
       onCustomModelIdChange?.(trimmedModel);
+      onCustomEndpointChange?.(trimmedEndpoint);
       onApiKeyModeChange("custom");
 
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_CUSTOM_KEY, trimmedKey);
         localStorage.setItem(STORAGE_CUSTOM_PROVIDER, activeTab);
         localStorage.setItem(STORAGE_CUSTOM_MODEL, trimmedModel);
+        localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, trimmedEndpoint);
         localStorage.setItem(STORAGE_KEY_MODE, "custom");
       }
 
@@ -204,7 +216,7 @@ export function Navbar({
               activeFill="#7c3aed"
               activeStroke="#7c3aed"
               onClick={() => handleModeSelect("custom")}
-              title={`Custom API Key (${customProvider === "nvidia" ? "NVIDIA NIM" : "Gemini"})`}
+              title={`Custom API Key (${customProvider === "nvidia" ? "NVIDIA NIM" : customProvider === "custom" ? "Custom Endpoint" : "Gemini"})`}
               className="px-2.5 sm:px-3 py-1"
             >
               <KeyRound className="size-3" />
@@ -259,8 +271,8 @@ export function Navbar({
                 </button>
               </div>
 
-              {/* 2-Tabbed Provider Options (Gemini API vs NVIDIA NIM) */}
-              <div className="mt-4 flex items-center gap-2 border-b-2 border-[#18181b]/20 pb-3">
+              {/* 3-Tabbed Provider Options (Gemini API vs NVIDIA NIM vs Custom Endpoint) */}
+              <div className="mt-4 flex items-center gap-1.5 border-b-2 border-[#18181b]/20 pb-3">
                 <SketchOptionButton
                   type="button"
                   active={activeTab === "gemini"}
@@ -270,7 +282,7 @@ export function Navbar({
                   className="flex-1 py-1.5 text-xs font-bold"
                 >
                   <Sparkles className="size-3.5" />
-                  <span>Gemini API</span>
+                  <span>Gemini</span>
                 </SketchOptionButton>
 
                 <SketchOptionButton
@@ -282,7 +294,19 @@ export function Navbar({
                   className="flex-1 py-1.5 text-xs font-bold"
                 >
                   <Cpu className="size-3.5" />
-                  <span>NVIDIA NIM</span>
+                  <span>NVIDIA</span>
+                </SketchOptionButton>
+
+                <SketchOptionButton
+                  type="button"
+                  active={activeTab === "custom"}
+                  activeFill="#7c3aed"
+                  activeStroke="#7c3aed"
+                  onClick={() => setActiveTab("custom")}
+                  className="flex-1 py-1.5 text-xs font-bold"
+                >
+                  <Globe className="size-3.5" />
+                  <span>Endpoint</span>
                 </SketchOptionButton>
               </div>
 
@@ -317,7 +341,7 @@ export function Navbar({
                       </p>
                     </div>
                   </div>
-                ) : (
+                ) : activeTab === "nvidia" ? (
                   /* TAB 2: NVIDIA NIM (Asks for Model ID and API Key both) */
                   <div className="space-y-3">
                     {/* Model ID Input */}
@@ -366,6 +390,69 @@ export function Navbar({
                       <div className="text-[11px] leading-tight">
                         <strong>Strict 39 RPM Limiter Active:</strong> All calls across this key are timed within a sliding 60-second window to prevent registering 429 quota errors.
                       </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* TAB 3: CUSTOM ENDPOINT (Endpoint, Model ID, and API Key) */
+                  <div className="space-y-3">
+                    {/* Endpoint URL Input */}
+                    <div>
+                      <label className="block text-xs font-mono font-bold text-[#18181b] mb-1.5">
+                        Endpoint URL
+                      </label>
+                      <input
+                        type="url"
+                        value={tempEndpoint}
+                        onChange={(e) => setTempEndpoint(e.target.value)}
+                        placeholder="https://api.openai.com/v1/chat/completions"
+                        className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#7c3aed] focus:outline-none"
+                      />
+                      <p className="mt-1 text-[11px] text-[#71717a] font-mono">
+                        OpenAI-compatible URL (e.g. Ollama, vLLM, OpenRouter, Groq, OpenAI).
+                      </p>
+                    </div>
+
+                    {/* Model ID Input */}
+                    <div>
+                      <label className="block text-xs font-mono font-bold text-[#18181b] mb-1.5">
+                        Model ID
+                      </label>
+                      <input
+                        type="text"
+                        value={tempModel}
+                        onChange={(e) => setTempModel(e.target.value)}
+                        placeholder="gpt-4o"
+                        className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#7c3aed] focus:outline-none"
+                      />
+                      <p className="mt-1 text-[11px] text-[#71717a] font-mono">
+                        Model identifier (e.g. <code className="text-[#7c3aed] font-bold">gpt-4o</code>, llama3, qwen-2.5).
+                      </p>
+                    </div>
+
+                    {/* API Key Input */}
+                    <div>
+                      <label className="block text-xs font-mono font-bold text-[#18181b] mb-1.5">
+                        API Key
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showKeySecret ? "text" : "password"}
+                          value={tempKey}
+                          onChange={(e) => setTempKey(e.target.value)}
+                          placeholder="sk-... (or leave empty for local models)"
+                          className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2.5 pr-10 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#7c3aed] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowKeySecret(!showKeySecret)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-[#18181b]"
+                        >
+                          {showKeySecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-[#71717a] font-mono">
+                        Bearer authentication token sent with the request header.
+                      </p>
                     </div>
                   </div>
                 )}

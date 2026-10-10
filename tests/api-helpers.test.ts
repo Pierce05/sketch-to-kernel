@@ -85,3 +85,41 @@ describe("api-rate-limiter (takeApiSlot & keyId)", () => {
     expect(afterWindow.allowed).toBe(true);
   });
 });
+
+describe("normalizeEndpointUrl", () => {
+  it("preserves full chat/completions endpoints", async () => {
+    const { normalizeEndpointUrl } = await import("../lib/custom-endpoint");
+    expect(
+      normalizeEndpointUrl("https://api.openai.com/v1/chat/completions")
+    ).toBe("https://api.openai.com/v1/chat/completions");
+    expect(
+      normalizeEndpointUrl("https://api.openai.com/v1/chat/completions///")
+    ).toBe("https://api.openai.com/v1/chat/completions");
+  });
+
+  it("appends chat/completions to /v1 endpoints", async () => {
+    const { normalizeEndpointUrl } = await import("../lib/custom-endpoint");
+    expect(normalizeEndpointUrl("https://api.openai.com/v1")).toBe(
+      "https://api.openai.com/v1/chat/completions"
+    );
+    expect(normalizeEndpointUrl("http://localhost:11434/v1/")).toBe(
+      "http://localhost:11434/v1/chat/completions"
+    );
+  });
+
+  it("appends /v1/chat/completions to root domain endpoints", async () => {
+    const { normalizeEndpointUrl } = await import("../lib/custom-endpoint");
+    expect(normalizeEndpointUrl("http://localhost:11434")).toBe(
+      "http://localhost:11434/v1/chat/completions"
+    );
+    expect(normalizeEndpointUrl("https://custom-ai.internal")).toBe(
+      "https://custom-ai.internal/v1/chat/completions"
+    );
+  });
+
+  it("handles empty or whitespace strings", async () => {
+    const { normalizeEndpointUrl } = await import("../lib/custom-endpoint");
+    expect(normalizeEndpointUrl("")).toBe("");
+    expect(normalizeEndpointUrl("   ")).toBe("");
+  });
+});

@@ -5,6 +5,7 @@ import { extractCompilePayload } from "@/lib/json-extractor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileResponse } from "@/lib/types";
 import { compileWithNvidiaNim } from "@/lib/nvidia-nim";
+import { compileWithCustomEndpoint } from "@/lib/custom-endpoint";
 import { getClientIp, takeIpSlot } from "@/lib/ip-rate-limit";
 import { takeApiSlot, keyId } from "@/lib/api-rate-limiter";
 import { buildCompilePrompt } from "@/lib/prompts";
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
       customProvider = "gemini",
       customApiKey,
       customModelId,
+      customEndpoint,
       wireframeDescription,
     } = validationResult.data;
 
@@ -120,7 +122,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Route to NVIDIA NIM:
+    // 2. Route to Custom OpenAI-compatible Endpoint:
+    if (apiKeyType === "custom" && customProvider === "custom") {
+      if (!customEndpoint?.trim()) {
+        return errorResponse(400, "Custom endpoint URL is required.");
+      }
+      const modelId = customModelId?.trim() || "default";
+
+      const customResult = await compileWithCustomEndpoint({
+        endpoint: customEndpoint,
+        apiKey: customApiKey ?? "",
+        modelId,
+        imageDataUrl: image,
+        wireframeDescription,
+      });
+
+      if (!customResult.success) {
+        return errorResponse(
+          customResult.status,
+          customResult.error ?? "Custom endpoint compilation failed.",
+        );
+      }
+
+      return NextResponse.json(customResult.data, { status: 200 });
+    }
+
+    // 3. Route to NVIDIA NIM:
     // Key 2 is set to NVIDIA NIM (model "z-ai/glm-5.3")
     // Custom with provider "nvidia" uses user model & key
     const isNvidia =

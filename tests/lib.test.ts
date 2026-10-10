@@ -71,6 +71,35 @@ describe("CompileRequestSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+  it("accepts customProvider 'custom' with valid customEndpoint and key", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+      customProvider: "custom",
+      customApiKey: "sk-test",
+      customEndpoint: "https://api.openai.com/v1/chat/completions",
+    });
+    expect(r.success).toBe(true);
+  });
+  it("rejects customProvider 'custom' when customEndpoint is missing", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+      customProvider: "custom",
+      customApiKey: "sk-test",
+    });
+    expect(r.success).toBe(false);
+  });
+  it("rejects customProvider 'custom' when customEndpoint is blank", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+      customProvider: "custom",
+      customApiKey: "sk-test",
+      customEndpoint: "   ",
+    });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe("CompileOutputSchema", () => {

@@ -1,12 +1,13 @@
 export type ApiKeyMode = "default_1" | "default_2" | "custom";
-export type CustomProvider = "gemini" | "nvidia";
+export type CustomProvider = "gemini" | "nvidia" | "custom";
 
 export interface CompileRequest {
   image: string; // Base64 data URL, e.g. "data:image/png;base64,..."
   apiKeyType: ApiKeyMode;
-  customProvider?: CustomProvider; // "gemini" | "nvidia"
+  customProvider?: CustomProvider; // "gemini" | "nvidia" | "custom"
   customApiKey?: string; // Sent when apiKeyType === "custom"
-  customModelId?: string; // Sent for NVIDIA NIM custom model
+  customModelId?: string; // Sent for NVIDIA NIM or custom model
+  customEndpoint?: string; // Sent when customProvider === "custom"
   wireframeDescription?: string; // Semantic wireframe element layout description
 }
 
