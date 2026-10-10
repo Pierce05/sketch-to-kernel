@@ -317,7 +317,7 @@ sketch-to-kernel/
 | Rate Limiting | 29 RPM (Gemini) / 39 RPM (NVIDIA NIM) sliding-window queues |
 | Validation & Schema | Zod v3 |
 | Security Pipeline | sanitize-html, DOMPurify, Content Security Policy |
-| Test Coverage | Vitest (45 automated test cases across 3 suites) |
+| Test Coverage | Vitest (53 automated test cases across 3 suites) |
 | Target Browsers | Modern Evergreen Browsers (Chrome, Edge, Firefox, Safari) |
 
 ---
@@ -327,11 +327,11 @@ sketch-to-kernel/
 Every pull request is automatically verified against a continuous integration pipeline:
 - **TypeScript**: Strict typechecking (`tsc --noEmit`) with zero unresolved types.
 - **ESLint**: Zero lint warnings or errors.
-- **Vitest**: 45 passing automated unit and integration tests covering API fallback orchestration, rate limiting, layout serialization, JSON extraction, and XSS sanitization.
+- **Vitest**: 53 passing automated unit and integration tests covering API fallback orchestration, rate limiting, layout serialization, JSON extraction, and XSS sanitization.
 - **Production Build**: Production compilation verified using Next.js Turbopack.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE) &copy; 2026 Purvanshi Khandelwal ([@Pierce05](https://github.com/Pierce05)) & Atharv R Gachchi ([@AtharvRG](https://github.com/AtharvRG)).
