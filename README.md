@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Sketch2Kernel Logo" width="130" />
+  <img src="assets/logo.png" alt="Sketch2Kernel Logo" width="260" />
 </p>
 
 <h1 align="center">Sketch2Kernel</h1>
