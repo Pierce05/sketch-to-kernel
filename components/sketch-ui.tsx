@@ -9,13 +9,6 @@ import React, {
 } from "react";
 import rough from "roughjs";
 
-// Ensure wired-elements custom elements are loaded on client
-if (typeof window !== "undefined") {
-  import("wired-elements").catch(() => {
-    // Ignore if already loaded or fallback
-  });
-}
-
 /**
  * Common hook: Re-sketch on hover.
  * Regenerates the seed on mouse hover to produce a fresh, tactile pen stroke drawing.
@@ -638,71 +631,3 @@ export const SketchOptionButton = forwardRef<HTMLButtonElement, SketchOptionButt
 );
 SketchOptionButton.displayName = "SketchOptionButton";
 
-/* =========================================================================
-   WIRED ELEMENTS REACT COMPONENT WRAPPERS
-   ========================================================================= */
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "wired-button": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & { elevation?: number; disabled?: string | boolean },
-        HTMLElement
-      >;
-      "wired-card": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & { elevation?: number; fill?: string },
-        HTMLElement
-      >;
-      "wired-input": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          placeholder?: string;
-          value?: string;
-          type?: string;
-        },
-        HTMLElement
-      >;
-      "wired-divider": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & { elevation?: number },
-        HTMLElement
-      >;
-    }
-  }
-}
-
-export function WiredCardWrapper({
-  children,
-  elevation = 2,
-  fill = "#ffffff",
-  className = "",
-}: {
-  children: React.ReactNode;
-  elevation?: number;
-  fill?: string;
-  className?: string;
-}) {
-  return (
-    <div className={`wired-card-container ${className}`}>
-      <wired-card elevation={elevation} fill={fill}>
-        {children}
-      </wired-card>
-    </div>
-  );
-}
-
-export function WiredButtonWrapper({
-  children,
-  elevation = 1,
-  className = "",
-  onClick,
-}: {
-  children: React.ReactNode;
-  elevation?: number;
-  className?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <wired-button elevation={elevation} className={className} onClick={onClick}>
-      {children}
-    </wired-button>
-  );
-}

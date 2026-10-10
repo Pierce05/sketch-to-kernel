@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "drawably/style.css";
 
 @font-face {
   font-family: "Drawably Pen";
@@ -30,12 +29,6 @@
   --wash-blue: #bfdbfe;
   --wash-pink: #fbcfe8;
   --wash-green: #bbf7d0;
-
-  /* Drawably Overrides */
-  --drawably-paper: var(--paper-card);
-  --drawably-stroke: var(--ink-blue);
-  --drawably-ink: var(--ink-primary);
-  --drawably-width: 2px;
 }
 
 * {
@@ -110,4 +103,29 @@ body {
 /* Smooth canvas touch */
 .touch-none-canvas {
   touch-action: none;
+}
+
+/* 60fps Hardware-Accelerated Animation Classes */
+.gpu-layer {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* Reduced motion preference support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

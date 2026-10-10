@@ -256,7 +256,7 @@ export function Navbar({
             </div>
             <div className="flex flex-col">
               <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold font-mono tracking-tight text-[#18181b]">
-                Sketch<span className="text-[#2724d1]">2UI</span>
+                Sketch<span className="text-[#2724d1]">2Kernel</span>
                 <SketchBadge
                   stroke="#2724d1"
                   fill="rgba(39, 36, 209, 0.08)"
