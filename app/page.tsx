@@ -23,6 +23,8 @@ import {
   STORAGE_CUSTOM_KEY_ENDPOINT,
   STORAGE_CUSTOM_MODEL_NVIDIA,
   STORAGE_CUSTOM_MODEL_ENDPOINT,
+  STORAGE_NIM_EXTRA_BODY,
+  STORAGE_CUSTOM_EXTRA_BODY_NVIDIA,
 } from "@/lib/utils";
 import {
   PenTool,
@@ -54,6 +56,8 @@ export default function LandingPage() {
   const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
   const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
   const [customThinking, setCustomThinking] = useState(false);
+  const [customExtraBodyNvidia, setCustomExtraBodyNvidia] = useState(false);
+  const [nimExtraBody, setNimExtraBody] = useState(false);
   const [customKeyGemini, setCustomKeyGemini] = useState("");
   const [customKeyNvidia, setCustomKeyNvidia] = useState("");
   const [customKeyEndpoint, setCustomKeyEndpoint] = useState("");
@@ -79,6 +83,10 @@ export default function LandingPage() {
       if (savedEndpoint) setCustomEndpoint(savedEndpoint);
       const savedThinking = localStorage.getItem(STORAGE_CUSTOM_THINKING);
       if (savedThinking !== null) setCustomThinking(savedThinking === "true");
+      const savedExtraBody = localStorage.getItem(STORAGE_CUSTOM_EXTRA_BODY_NVIDIA);
+      if (savedExtraBody !== null) setCustomExtraBodyNvidia(savedExtraBody === "true");
+      const savedNimExtraBody = localStorage.getItem(STORAGE_NIM_EXTRA_BODY);
+      if (savedNimExtraBody !== null) setNimExtraBody(savedNimExtraBody === "true");
 
       const savedKeyGemini = localStorage.getItem(STORAGE_CUSTOM_KEY_GEMINI);
       if (savedKeyGemini) setCustomKeyGemini(savedKeyGemini);
@@ -171,6 +179,20 @@ export default function LandingPage() {
     }
   };
 
+  const handleCustomExtraBodyNvidiaChange = (enabled: boolean) => {
+    setCustomExtraBodyNvidia(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_EXTRA_BODY_NVIDIA, String(enabled));
+    }
+  };
+
+  const handleNimExtraBodyChange = (enabled: boolean) => {
+    setNimExtraBody(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_NIM_EXTRA_BODY, String(enabled));
+    }
+  };
+
   const handleLaunchPlayground = (e: React.MouseEvent) => {
     e.preventDefault();
     navigateWithBlob("/playground", { x: e.clientX, y: e.clientY });
@@ -202,6 +224,10 @@ export default function LandingPage() {
         onCustomModelNvidiaChange={handleCustomModelNvidiaChange}
         customModelEndpoint={customModelEndpoint}
         onCustomModelEndpointChange={handleCustomModelEndpointChange}
+        customExtraBodyNvidia={customExtraBodyNvidia}
+        onCustomExtraBodyNvidiaChange={handleCustomExtraBodyNvidiaChange}
+        nimExtraBody={nimExtraBody}
+        onNimExtraBodyChange={handleNimExtraBodyChange}
       />
 
       <main className="flex-1 bg-sketchbook-grid">

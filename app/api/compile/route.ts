@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
       customEndpoint,
       wireframeDescription,
       enableThinking = false,
+      enableExtraBody = false,
     } = validationResult.data;
 
     // 1b. Per-IP limit on the shared default keys, so they cannot be drained by one client
@@ -183,6 +184,7 @@ export async function POST(req: NextRequest) {
         imageDataUrl: image,
         wireframeDescription,
         enableThinking,
+        enableExtraBody,
       });
 
       if (!nvidiaResult.success) {

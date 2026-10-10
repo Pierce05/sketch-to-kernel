@@ -1,7 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
+import { useRouter, usePathname } from "next/navigation";
 import gsap from "gsap";
 
 interface TransitionContextType {
@@ -59,9 +66,88 @@ const blobClip = (r: number, wob: number, t: number, cx: number, cy: number) => 
 
 export function InkBlobProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isTransitioning, setIsTransitioning] = useState(false);
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const targetPathRef = useRef<string | null>(null);
+  const isCoveredRef = useRef(false);
+  const isRevealingRef = useRef(false);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Phase 2: Blur & fade out from the solid blue color fill once new page is ready
+  const triggerReveal = useCallback(() => {
+    if (isRevealingRef.current) return;
+    isRevealingRef.current = true;
+
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+
+    const overlay = overlayRef.current;
+    if (!overlay) {
+      setIsTransitioning(false);
+      targetPathRef.current = null;
+      isCoveredRef.current = false;
+      isRevealingRef.current = false;
+      return;
+    }
+
+    tlRef.current?.kill();
+    const revealState = { opacity: 1, blur: 8 };
+
+    const revealTl = gsap.timeline({
+      onUpdate: () => {
+        if (!overlay) return;
+        overlay.style.opacity = String(revealState.opacity);
+        overlay.style.backdropFilter = `blur(${revealState.blur}px)`;
+        overlay.style.setProperty("-webkit-backdrop-filter", `blur(${revealState.blur}px)`);
+      },
+      onComplete: () => {
+        setIsTransitioning(false);
+        targetPathRef.current = null;
+        isCoveredRef.current = false;
+        isRevealingRef.current = false;
+        if (overlay) {
+          overlay.style.clipPath = "circle(0px at 50% 50%)";
+          overlay.style.opacity = "1";
+          overlay.style.backdropFilter = "none";
+          overlay.style.removeProperty("-webkit-backdrop-filter");
+        }
+      },
+    });
+
+    tlRef.current = revealTl;
+    revealTl.to(revealState, {
+      opacity: 0,
+      blur: 0,
+      duration: 0.35,
+      ease: "power2.out",
+    });
+  }, []);
+
+  // Listen for route change: when Next.js swaps pathname to the target route, unveil immediately
+  useEffect(() => {
+    if (!targetPathRef.current) return;
+    const currentPath = pathname.split("?")[0].split("#")[0];
+    if (currentPath === targetPathRef.current) {
+      if (isCoveredRef.current && !isRevealingRef.current) {
+        triggerReveal();
+      }
+    }
+  }, [pathname, triggerReveal]);
+
+  // Cleanup timers & animations on unmount
+  useEffect(() => {
+    return () => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+      }
+      tlRef.current?.kill();
+    };
+  }, []);
 
   const navigateWithBlob = useCallback(
     (targetUrl: string, origin?: { x: number; y: number }) => {
@@ -73,9 +159,25 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setIsTransitioning(true);
+      const normalizedTarget = targetUrl.split("?")[0].split("#")[0];
+      const currentPath = pathname.split("?")[0].split("#")[0];
 
-      // Preload the target route ahead of time so assets are warm
+      if (normalizedTarget === currentPath) {
+        router.push(targetUrl);
+        return;
+      }
+
+      setIsTransitioning(true);
+      targetPathRef.current = normalizedTarget;
+      isCoveredRef.current = false;
+      isRevealingRef.current = false;
+
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+
+      // Preload target route ahead of time
       router.prefetch(targetUrl);
 
       const cx = origin?.x ?? window.innerWidth / 2;
@@ -108,29 +210,30 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
       tl.to(state, { r: maxR, duration: 0.28, ease: "power3.in" }, 0.12);
       tl.to(state, { wob: 0, duration: 0.18, ease: "power2.out" }, 0.22);
 
-      // CRITICAL: Change page ONLY when the ink blob has 100% engulfed the entire viewport
+      // Once the ink blob 100% engulfs the viewport, hold the solid blue screen and push the route
       tl.call(() => {
+        if (!overlay) return;
+        overlay.style.clipPath = "none";
+        overlay.style.opacity = "1";
+        isCoveredRef.current = true;
+
         router.push(targetUrl);
-      });
 
-      // Brief pause to allow the new page to mount smoothly behind the solid ink mask
-      tl.to({}, { duration: 0.18 });
-
-      // Phase 2: Smoothly fade out the ink splatter to unveil the new screen seamlessly
-      tl.to(state, {
-        opacity: 0,
-        duration: 0.35,
-        ease: "power2.out",
-        onComplete: () => {
-          setIsTransitioning(false);
-          if (overlay) {
-            overlay.style.clipPath = "circle(0px at 50% 50%)";
-            overlay.style.opacity = "1";
-          }
-        },
+        // Check if route has already changed (e.g. fast in-memory cached route)
+        const activePath = window.location.pathname.split("?")[0].split("#")[0];
+        if (activePath === normalizedTarget && !isRevealingRef.current) {
+          triggerReveal();
+        } else {
+          // Fallback safety timeout so screen never gets stuck if navigation aborts
+          fallbackTimerRef.current = setTimeout(() => {
+            if (isCoveredRef.current && !isRevealingRef.current) {
+              triggerReveal();
+            }
+          }, 1800);
+        }
       });
     },
-    [router]
+    [router, pathname, triggerReveal]
   );
 
   return (
@@ -140,7 +243,7 @@ export function InkBlobProvider({ children }: { children: React.ReactNode }) {
       <div
         ref={overlayRef}
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[9999] bg-[#2724d1] transform-gpu will-change-[clip-path,opacity]"
+        className="pointer-events-none fixed inset-0 z-[9999] bg-[#2724d1] transform-gpu will-change-[clip-path,opacity,backdrop-filter]"
         style={{
           clipPath: "circle(0px at 50% 50%)",
         }}

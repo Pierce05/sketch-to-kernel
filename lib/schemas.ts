@@ -15,6 +15,7 @@ export const CompileRequestSchema = z
     customModelId: z.string().max(200).optional(),
     customEndpoint: z.string().max(2000).optional(),
     enableThinking: z.boolean().optional().default(false),
+    enableExtraBody: z.boolean().optional().default(false),
     wireframeDescription: z.string().max(50000).optional(),
   })
   .refine(
