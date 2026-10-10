@@ -107,7 +107,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
   <p class="mt-3 text-xs leading-relaxed text-gray-400">{{description}}</p>
   <div class="mt-4 flex flex-wrap gap-2">
     <span class="rounded-md border border-gray-800 bg-gray-900 px-2 py-0.5 text-[11px] font-mono text-indigo-300">Next.js 16</span>
-    <span class="rounded-md border border-gray-800 bg-gray-900 px-2 py-0.5 text-[11px] font-mono text-purple-300">Tailwind v4</span>
+    <span class="rounded-md border border-gray-800 bg-gray-900 px-2 py-0.5 text-[11px] font-mono text-purple-300">Web Component</span>
     <span class="rounded-md border border-gray-800 bg-gray-900 px-2 py-0.5 text-[11px] font-mono text-pink-300">Gemma 4 31B</span>
   </div>
   <div class="mt-5 pt-4 border-t border-gray-800 flex items-center justify-between">
@@ -121,7 +121,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
         { name: "projectTitle", type: "string", default: "Sketch2Kernel", description: "Hackathon project title" },
         { name: "trackBadge", type: "string", default: "Hacktoberfest 2026", description: "Hackathon track tag" },
         { name: "teamName", type: "string", default: "Pierce & Atharv", description: "Team creator names" },
-        { name: "description", type: "string", default: "Turn hand-drawn napkin sketches into live Tailwind components in seconds using Gemma 4.", description: "Project summary" },
+        { name: "description", type: "string", default: "Turn hand-drawn napkin sketches into live web components in seconds using Gemma 4.", description: "Project summary" },
         { name: "starsCount", type: "string", default: "142", description: "GitHub star count" },
         { name: "ctaLabel", type: "string", default: "Explore Project →", description: "Action button text" },
       ],

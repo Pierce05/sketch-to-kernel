@@ -8,8 +8,8 @@ export function buildCompilePrompt(wireframeDescription?: string): string {
     ? `\n\nCANVAS WIREFRAME STRUCTURE & ELEMENTS DETECTED:\n${wireframeDescription.trim()}`
     : "";
 
-  return `You are an expert Tailwind CSS frontend architect.
-Convert the provided hand-drawn UI wireframe or sketch into a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes.${wireframeContext}
+  return `You are an expert web component frontend architect.
+Convert the provided hand-drawn UI wireframe or sketch into a modern, clean, and fully responsive HTML web component.${wireframeContext}
 
 STRICT REQUIREMENTS:
 1. Accurately replicate the layout, labels, buttons, inputs, and components shown in the sketch.
@@ -19,7 +19,7 @@ STRICT REQUIREMENTS:
 5. DO NOT wrap the output in markdown code blocks. Output ONLY raw, parseable JSON conforming to:
 {
   "componentName": "string",
-  "html": "string containing pure HTML with Tailwind classes and {{propName}} variables",
+  "html": "string containing pure HTML web component markup and {{propName}} variables",
   "props": [
     { "name": "string", "type": "string", "default": "string", "description": "string" }
   ]

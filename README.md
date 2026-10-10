@@ -5,13 +5,13 @@
 <h1 align="center">Sketch2Kernel</h1>
 
 <p align="center">
-  <strong>The AI-Powered Digital Sketchbook: Compile Hand-Drawn Napkin Wireframes into Semantic, Sandboxed Tailwind CSS Components in Seconds.</strong>
+  <strong>The AI-Powered Digital Sketchbook: Compile Hand-Drawn Napkin Wireframes into Semantic, Sandboxed Web Components in Seconds.</strong>
 </p>
 
 <p align="center">
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16.4-black?style=flat&logo=next.js" alt="Next.js" /></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.3-blue?style=flat&logo=react" alt="React" /></a>
-  <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-v4.3-38bdf8?style=flat&logo=tailwind-css" alt="Tailwind CSS" /></a>
+  <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components"><img src="https://img.shields.io/badge/Web_Components-HTML5%20%7C%20CSS-38bdf8?style=flat&logo=html5" alt="Web Components" /></a>
   <a href="https://deepmind.google/technologies/gemma/"><img src="https://img.shields.io/badge/Google_Gemma_4-26B%20%2F%2031B-4285F4?style=flat&logo=google" alt="Google Gemma" /></a>
   <a href="https://build.nvidia.com"><img src="https://img.shields.io/badge/NVIDIA_NIM-GLM--5.3%20%7C%20LLaMA--3.1--70B-76B900?style=flat&logo=nvidia" alt="NVIDIA NIM" /></a>
   <a href="https://roughjs.com"><img src="https://img.shields.io/badge/Aesthetic-Rough.js-orange?style=flat" alt="Rough.js" /></a>
@@ -77,7 +77,7 @@ flowchart TD
     G --> I
     H --> I
     I --> J["HTML Safety Sanitizer (DOMPurify & CSP)"]
-    J --> K["Isolated Tailwind Play CDN Sandbox"]
+    J --> K["Isolated Web Component Sandbox"]
     K <--> L["Live Dynamic 2-Way Props Binding"]
 ```
 
@@ -177,15 +177,15 @@ Large language models return code in varied formats depending on prompt dynamics
 ### 5. Live Interactive Sandbox Runner
 
 <p align="center">
-  <img src="assets/sandbox.gif" alt="Live Sandboxed Tailwind & Props in Action" width="100%" />
+  <img src="assets/sandbox.gif" alt="Live Sandboxed Web Components & Props in Action" width="100%" />
 </p>
 
-- **Isolated Tailwind Sandbox**: Renders compiled components inside an isolated iframe powered by the official Tailwind Play CDN.
+- **Isolated Component Sandbox**: Renders compiled Web Components inside an isolated iframe with live CSS and styling execution.
 - **Real-Time Two-Way Props Table**:
   - Automatically identifies customizable component properties (labels, titles, button text, style variants, colors).
   - **Live Binding**: Editing any prop value in the table immediately re-interpolates the HTML and updates the live preview in real time without triggering an AI re-compilation.
 - **Viewport Switcher**: Instantly toggle between **Desktop (100%)**, **Tablet**, and **Mobile (375px)** responsive previews.
-- **One-Click Code Export**: View clean, formatted Tailwind HTML or JSX markup and copy it to your clipboard with celebratory particle effects.
+- **One-Click Code Export**: View clean, formatted Web Component HTML markup and copy it to your clipboard with celebratory particle effects.
 - **Responsive Drawer**: On mobile devices and small screens, the sandbox slides out cleanly as a drawer upon compilation.
 
 ---
@@ -223,7 +223,7 @@ sketch-to-kernel/
 ├── components/
 │   ├── canvas-panel.tsx              # Digital canvas: shapes, stamps, pen, eraser, shortcuts
 │   ├── canvas-presets.ts             # Built-in napkin wireframe presets
-│   ├── code-viewer.tsx               # Clean HTML and Tailwind code viewer
+│   ├── code-viewer.tsx               # Clean HTML and Web Component code viewer
 │   ├── ink-blob-transition.tsx       # Hand-drawn ink blob page transitions
 │   ├── navbar.tsx                    # Brand header, multi-provider credential modal
 │   ├── props-table.tsx               # Real-time two-way prop synchronization table
@@ -314,7 +314,7 @@ sketch-to-kernel/
 |---|---|
 | Frontend Framework | Next.js 16.4 (App Router, Turbopack) |
 | UI Library | React 19.3 |
-| CSS Architecture | Tailwind CSS v4.3 |
+| Component Output | Semantic HTML5 & Modern Responsive Web Components |
 | Vector Engine | Rough.js vector SVG rendering |
 | Multimodal AI Models | Google Gemma 4 31B (`gemma-4-31b-it`), Gemma 4 26B (`gemma-4-26b-a4b-it`) |
 | NIM Accelerated Models | `z-ai/glm-5.3`, `meta/llama-3.1-70b-instruct` |

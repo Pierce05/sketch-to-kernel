@@ -1,6 +1,6 @@
 ---
 name: sketch-compiler
-description: Compiles hand-drawn UI wireframes and whiteboard sketches into responsive Tailwind CSS components with customizable prop variables.
+description: Compiles hand-drawn UI wireframes and whiteboard sketches into responsive Web Components with customizable prop variables.
 license: MIT
 compatibility: Requires Node.js 18+ and access to Gemini API (Gemma 4).
 metadata:
@@ -10,12 +10,12 @@ metadata:
 
 # Sketch Compiler Skill
 
-Converts whiteboard sketches, wireframe images, and napkin mockups into clean, responsive Tailwind CSS components using Gemma 4 multimodal inference.
+Converts whiteboard sketches, wireframe images, and napkin mockups into clean, responsive Web Components using Gemma 4 multimodal inference.
 
 ## Architecture
 
 1. **Multimodal Analysis**: Reads the input wireframe image (PNG, JPEG, WebP) and recognizes layout structure, headings, buttons, forms, and interactive components.
-2. **Tailwind Synthesis**: Translates the wireframe geometry into semantic HTML with modern Tailwind CSS utility classes.
+2. **Web Component Synthesis**: Translates the wireframe geometry into semantic HTML with modern responsive styling.
 3. **Prop Discovery**: Detects customizable content slots and variable parameters (e.g. title, variant, badges, links).
 4. **Sanitization**: Strips scripts, inline event handlers, and unsafe URLs to produce sandbox-safe HTML.
 

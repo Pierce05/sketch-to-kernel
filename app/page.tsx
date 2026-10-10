@@ -279,7 +279,7 @@ export default function LandingPage() {
                 <SketchBadge stroke="#d12724" fill="rgba(209, 39, 36, 0.06)">
                   <span className="flex items-center gap-1.5 text-[#d12724] font-semibold">
                     <Zap className="size-3.5" />
-                    Live Tailwind Play CDN
+                    Live Sandboxed Runner
                   </span>
                 </SketchBadge>
                 <SketchBadge stroke="#188a42" fill="rgba(24, 138, 66, 0.06)">
@@ -337,7 +337,7 @@ export default function LandingPage() {
                           <span className="text-[10px]">[ ★ 142 ]</span>
                         </div>
                         <div className="text-[11px] text-[#18181b] leading-tight">
-                          Turn hand-drawn napkin wireframes into pure Tailwind components in seconds!
+                          Turn hand-drawn napkin wireframes into web components in seconds!
                         </div>
                         <div className="flex gap-1.5 text-[10px]">
                           <span className="border border-[#2724d1] px-1 rounded">[Next.js 16]</span>
@@ -350,14 +350,14 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* Right Napkin: Compiled Live Tailwind Component */}
+                  {/* Right Napkin: Compiled Live Web Component */}
                   <div className="flex flex-col rounded-2xl border-2 border-[#188a42]/80 bg-[#faf9f5] p-5 relative overflow-hidden">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs font-mono font-bold text-[#188a42] uppercase tracking-wider">
-                        2. Compiled Sandboxed Component
+                        2. Compiled Web Component
                       </span>
                       <span className="rounded border border-[#188a42] bg-emerald-50 px-2 py-0.5 text-[10px] font-mono text-[#188a42] font-bold">
-                        Tailwind Output
+                        Web Component Output
                       </span>
                     </div>
 
@@ -377,14 +377,14 @@ export default function LandingPage() {
                           </span>
                         </div>
                         <p className="mt-2.5 text-xs text-[#52525b] leading-relaxed">
-                          Turn hand-drawn napkin wireframes into pure Tailwind components in seconds!
+                          Turn hand-drawn napkin wireframes into web components in seconds!
                         </p>
                         <div className="mt-3 flex gap-1.5 font-mono">
                           <span className="rounded bg-gray-100 border border-gray-300 px-1.5 py-0.5 text-[10px] text-[#2724d1]">
                             Next.js 16
                           </span>
                           <span className="rounded bg-gray-100 border border-gray-300 px-1.5 py-0.5 text-[10px] text-purple-700">
-                            Tailwind v4
+                            Web Component
                           </span>
                           <span className="rounded bg-gray-100 border border-gray-300 px-1.5 py-0.5 text-[10px] text-pink-700">
                             Gemma 4
@@ -565,7 +565,7 @@ export default function LandingPage() {
                       : "border-[#18181b] bg-white text-[#18181b] hover:bg-zinc-100"
                   }`}
                 >
-                  Live Sandboxed Tailwind
+                  Live Sandboxed Web Components
                 </button>
                 <button
                   type="button"
@@ -651,7 +651,7 @@ export default function LandingPage() {
                   </div>
                 )}
 
-                {/* Tab 3: Live Sandboxed Tailwind */}
+                {/* Tab 3: Live Sandboxed Web Components */}
                 {activeShowcaseTab === "sandbox" && (
                   <div className="space-y-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
@@ -660,7 +660,7 @@ export default function LandingPage() {
                           Isolated Live Sandbox &amp; Responsive Viewports
                         </h3>
                         <p className="text-xs text-[#52525b] mt-0.5">
-                          Sandboxed iframe with live Tailwind Play CDN, DOMPurify XSS protection, and mobile/tablet/desktop viewports.
+                          Sandboxed iframe with live web rendering, DOMPurify XSS protection, and mobile/tablet/desktop viewports.
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -674,7 +674,7 @@ export default function LandingPage() {
                     <div className="relative rounded-2xl border-2 border-[#18181b] overflow-hidden bg-black/5 shadow-md">
                       <img
                         src="/assets/sandbox.gif"
-                        alt="Live Sandboxed Tailwind & Props in action"
+                        alt="Live Sandboxed Web Components & Props in action"
                         className="w-full h-auto object-cover max-h-[540px] rounded-2xl"
                         loading="lazy"
                       />
@@ -765,7 +765,7 @@ export default function LandingPage() {
                   Gemma 4 31B Synthesis
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
-                  Direct multimodal inference pipeline with strict Zod schema validation. Produces pure semantic Tailwind markup with detected variable slots.
+                  Direct multimodal inference pipeline with strict Zod schema validation. Produces pure semantic HTML web markup with detected variable slots.
                 </p>
               </SketchCard>
 
@@ -783,7 +783,7 @@ export default function LandingPage() {
                   Live Sandbox &amp; 2-Way Props
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
-                  Isolated iframe runner injecting Tailwind Play CDN. Editing prop variables immediately re-renders the live component in real time.
+                  Isolated iframe runner for live components. Editing prop variables immediately re-renders the live component in real time.
                 </p>
               </SketchCard>
             </div>

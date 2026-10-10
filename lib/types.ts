@@ -22,7 +22,7 @@ export interface ComponentProp {
 // Runtime validation is defined in schemas.ts (Zod). Keep these interfaces in sync.
 export interface CompileResponse {
   componentName: string; // e.g. "PricingCard"
-  html: string; // Self-contained Tailwind HTML markup
+  html: string; // Self-contained Web Component HTML markup
   props: ComponentProp[];
   error?: string;
 }

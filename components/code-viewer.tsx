@@ -66,7 +66,7 @@ export function CodeViewer({ code, componentName }: CodeViewerProps) {
             variant="primary"
             onClick={handleCopy}
             className="text-[11px] font-bold py-1 px-3"
-            title="Copy Tailwind HTML"
+            title="Copy Web Component Code"
           >
             {copied ? (
               <>
