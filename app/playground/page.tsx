@@ -33,9 +33,9 @@ export default function PlaygroundPage() {
   const [customKeyGemini, setCustomKeyGemini] = useState("");
   const [customKeyNvidia, setCustomKeyNvidia] = useState("");
   const [customKeyEndpoint, setCustomKeyEndpoint] = useState("");
-  const [customModelNvidia, setCustomModelNvidia] = useState("meta/llama-3.1-70b-instruct");
+  const [customModelNvidia, setCustomModelNvidia] = useState("z-ai/glm-5.3-flash");
   const [customModelEndpoint, setCustomModelEndpoint] = useState("gpt-4o");
-  const [customModelId, setCustomModelId] = useState("meta/llama-3.1-70b-instruct");
+  const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3-flash");
   const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
   const [customThinking, setCustomThinking] = useState(false);
   const [customExtraBodyNvidia, setCustomExtraBodyNvidia] = useState(false);
@@ -212,7 +212,7 @@ export default function PlaygroundPage() {
     const effectiveModel =
       apiKeyMode === "custom"
         ? (customProvider === "nvidia"
-            ? customModelNvidia || "meta/llama-3.1-70b-instruct"
+            ? customModelNvidia || "z-ai/glm-5.3-flash"
             : customProvider === "custom"
             ? customModelEndpoint || "gpt-4o"
             : undefined)

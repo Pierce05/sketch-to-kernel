@@ -61,7 +61,7 @@ export default function LandingPage() {
   const [customKeyGemini, setCustomKeyGemini] = useState("");
   const [customKeyNvidia, setCustomKeyNvidia] = useState("");
   const [customKeyEndpoint, setCustomKeyEndpoint] = useState("");
-  const [customModelNvidia, setCustomModelNvidia] = useState("meta/llama-3.1-70b-instruct");
+  const [customModelNvidia, setCustomModelNvidia] = useState("z-ai/glm-5.3-flash");
   const [customModelEndpoint, setCustomModelEndpoint] = useState("gpt-4o");
 
   // Showcase Gallery Active Tab
@@ -498,7 +498,7 @@ export default function LandingPage() {
                   NVIDIA NIM Acceleration
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
-                  Enterprise-grade high-throughput endpoints supporting <strong className="text-[#18181b]">z-ai/glm-5.3</strong> and <strong className="text-[#18181b]">meta/llama-3.1-70b-instruct</strong> with optional deep reasoning toggles.
+                  Enterprise-grade high-throughput endpoints supporting <strong className="text-[#18181b]">z-ai/glm-5.3</strong> and <strong className="text-[#18181b]">z-ai/glm-5.3-flash</strong> with optional deep reasoning toggles.
                 </p>
                 <div className="mt-4 pt-4 border-t border-dashed border-zinc-200 flex flex-wrap gap-1.5 font-mono text-[10px]">
                   <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">

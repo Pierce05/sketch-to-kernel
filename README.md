@@ -133,7 +133,7 @@ Sketch2Kernel provides three independent compilation engines with separated cred
 - **Sliding-Window Protection**: Client-side **29 RPM sliding-window rate limiter** (`lib/gemini-rate-limiter.ts`) prevents accidental upstream quota exhaustion.
 
 #### Engine 2: NVIDIA NIM (High-Throughput Acceleration)
-- **Sub-2-Second Accelerated Generation**: High-throughput endpoints powered by `z-ai/glm-5.3` and `meta/llama-3.1-70b-instruct`.
+- **Sub-2-Second Accelerated Generation**: High-throughput endpoints powered by `z-ai/glm-5.3` and `z-ai/glm-5.3-flash`.
 - **Thinking Parameter Controls**: Configurable thinking toggle (`enable_thinking: false`) for models that support explicit reasoning parameters.
 - **Canvas Semantic Layout Serializer**: Automatically serializes canvas shapes, component stamps, text labels, dimensions, and layout hierarchy into an inventory. Non-vision models receive exact spatial context, preventing hallucinations.
 - **Sliding-Window Protection**: Hardware-level **39 RPM sliding-window rate limiter** (`lib/nvidia-rate-limiter.ts`) ensures compliance with NVIDIA developer tier constraints.
@@ -317,7 +317,7 @@ sketch-to-kernel/
 | Component Output | Semantic HTML5 & Modern Responsive Web Components |
 | Vector Engine | Rough.js vector SVG rendering |
 | Multimodal AI Models | Google Gemma 4 31B (`gemma-4-31b-it`), Gemma 4 26B (`gemma-4-26b-a4b-it`) |
-| NIM Accelerated Models | `z-ai/glm-5.3`, `meta/llama-3.1-70b-instruct` |
+| NIM Accelerated Models | `z-ai/glm-5.3`, `z-ai/glm-5.3-flash` |
 | Custom Model Support | OpenAI Chat Completions compatible (Ollama, vLLM, OpenRouter, Groq) |
 | Rate Limiting | 29 RPM (Gemini) / 39 RPM (NVIDIA NIM) sliding-window queues |
 | Validation & Schema | Zod v3 |
