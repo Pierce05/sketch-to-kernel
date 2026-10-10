@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { extractFencedJson } from "@/lib/json-extractor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileRequestSchema, CompileOutputSchema } from "@/lib/schemas";
+import { buildCompilePrompt } from "@/lib/prompts";
 
 describe("extractFencedJson", () => {
   it("parses plain JSON", () => {
@@ -155,5 +156,20 @@ describe("CompileOutputSchema", () => {
   });
   it("rejects output with no html", () => {
     expect(CompileOutputSchema.safeParse({ componentName: "Card", props: [] }).success).toBe(false);
+  });
+});
+
+describe("buildCompilePrompt", () => {
+  it("includes visual styling and modern utility instructions", () => {
+    const prompt = buildCompilePrompt();
+    expect(prompt).toContain("Visual Styling & Polish");
+    expect(prompt).toContain("Tailwind CSS utility classes");
+    expect(prompt).toContain("Do NOT output unstyled raw HTML elements");
+  });
+
+  it("appends detected wireframe structure when provided", () => {
+    const prompt = buildCompilePrompt("Card with 2 buttons");
+    expect(prompt).toContain("CANVAS WIREFRAME STRUCTURE & ELEMENTS DETECTED:");
+    expect(prompt).toContain("Card with 2 buttons");
   });
 });
