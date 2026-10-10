@@ -102,13 +102,15 @@ export async function compileWithNvidiaNim({
           },
         ];
 
-    const payload: Record<string, unknown> = {
+        const payload: Record<string, unknown> = {
       model: cleanModel,
       messages,
       temperature: 0.1,
       max_tokens: 8192,
       stream: true,
     };
+    // GLM on NIM ignores enable_thinking. reasoning_effort is what actually limits reasoning.
+    if (!enableThinking) payload.reasoning_effort = "low";
 
     if (enableExtraBody) {
       payload.extra_body = {
