@@ -118,7 +118,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
   </div>
 </div>`,
       props: [
-        { name: "projectTitle", type: "string", default: "Sketch2UI", description: "Hackathon project title" },
+        { name: "projectTitle", type: "string", default: "Sketch2Kernel", description: "Hackathon project title" },
         { name: "trackBadge", type: "string", default: "Hacktoberfest 2026", description: "Hackathon track tag" },
         { name: "teamName", type: "string", default: "Pierce & Atharv", description: "Team creator names" },
         { name: "description", type: "string", default: "Turn hand-drawn napkin sketches into live Tailwind components in seconds using Gemma 4.", description: "Project summary" },

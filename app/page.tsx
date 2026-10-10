@@ -16,6 +16,13 @@ import {
   STORAGE_KEY_MODE,
   STORAGE_CUSTOM_PROVIDER,
   STORAGE_CUSTOM_MODEL,
+  STORAGE_CUSTOM_ENDPOINT,
+  STORAGE_CUSTOM_THINKING,
+  STORAGE_CUSTOM_KEY_GEMINI,
+  STORAGE_CUSTOM_KEY_NVIDIA,
+  STORAGE_CUSTOM_KEY_ENDPOINT,
+  STORAGE_CUSTOM_MODEL_NVIDIA,
+  STORAGE_CUSTOM_MODEL_ENDPOINT,
 } from "@/lib/utils";
 import {
   PenTool,
@@ -30,6 +37,13 @@ import {
   Layers,
   Heart,
   Palette,
+  Cpu,
+  Globe,
+  ShieldCheck,
+  Undo2,
+  Redo2,
+  Image as ImageIcon,
+  Play,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -38,6 +52,18 @@ export default function LandingPage() {
   const [customApiKey, setCustomApiKey] = useState("");
   const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
   const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
+  const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
+  const [customThinking, setCustomThinking] = useState(false);
+  const [customKeyGemini, setCustomKeyGemini] = useState("");
+  const [customKeyNvidia, setCustomKeyNvidia] = useState("");
+  const [customKeyEndpoint, setCustomKeyEndpoint] = useState("");
+  const [customModelNvidia, setCustomModelNvidia] = useState("meta/llama-3.1-70b-instruct");
+  const [customModelEndpoint, setCustomModelEndpoint] = useState("gpt-4o");
+
+  // Showcase Gallery Active Tab
+  const [activeShowcaseTab, setActiveShowcaseTab] = useState<
+    "canvas" | "models" | "sandbox" | "props"
+  >("canvas");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -49,6 +75,22 @@ export default function LandingPage() {
       if (savedProvider) setCustomProvider(savedProvider);
       const savedModel = localStorage.getItem(STORAGE_CUSTOM_MODEL);
       if (savedModel) setCustomModelId(savedModel);
+      const savedEndpoint = localStorage.getItem(STORAGE_CUSTOM_ENDPOINT);
+      if (savedEndpoint) setCustomEndpoint(savedEndpoint);
+      const savedThinking = localStorage.getItem(STORAGE_CUSTOM_THINKING);
+      if (savedThinking !== null) setCustomThinking(savedThinking === "true");
+
+      const savedKeyGemini = localStorage.getItem(STORAGE_CUSTOM_KEY_GEMINI);
+      if (savedKeyGemini) setCustomKeyGemini(savedKeyGemini);
+      const savedKeyNvidia = localStorage.getItem(STORAGE_CUSTOM_KEY_NVIDIA);
+      if (savedKeyNvidia) setCustomKeyNvidia(savedKeyNvidia);
+      const savedKeyEndpoint = localStorage.getItem(STORAGE_CUSTOM_KEY_ENDPOINT);
+      if (savedKeyEndpoint) setCustomKeyEndpoint(savedKeyEndpoint);
+
+      const savedModelNvidia = localStorage.getItem(STORAGE_CUSTOM_MODEL_NVIDIA);
+      if (savedModelNvidia) setCustomModelNvidia(savedModelNvidia);
+      const savedModelEndpoint = localStorage.getItem(STORAGE_CUSTOM_MODEL_ENDPOINT);
+      if (savedModelEndpoint) setCustomModelEndpoint(savedModelEndpoint);
     }
   }, []);
 
@@ -80,6 +122,55 @@ export default function LandingPage() {
     }
   };
 
+  const handleCustomEndpointChange = (endpoint: string) => {
+    setCustomEndpoint(endpoint);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, endpoint);
+    }
+  };
+
+  const handleCustomThinkingChange = (thinking: boolean) => {
+    setCustomThinking(thinking);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_THINKING, String(thinking));
+    }
+  };
+
+  const handleCustomKeyGeminiChange = (key: string) => {
+    setCustomKeyGemini(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_GEMINI, key);
+    }
+  };
+
+  const handleCustomKeyNvidiaChange = (key: string) => {
+    setCustomKeyNvidia(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_NVIDIA, key);
+    }
+  };
+
+  const handleCustomKeyEndpointChange = (key: string) => {
+    setCustomKeyEndpoint(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_ENDPOINT, key);
+    }
+  };
+
+  const handleCustomModelNvidiaChange = (model: string) => {
+    setCustomModelNvidia(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL_NVIDIA, model);
+    }
+  };
+
+  const handleCustomModelEndpointChange = (model: string) => {
+    setCustomModelEndpoint(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL_ENDPOINT, model);
+    }
+  };
+
   const handleLaunchPlayground = (e: React.MouseEvent) => {
     e.preventDefault();
     navigateWithBlob("/playground", { x: e.clientX, y: e.clientY });
@@ -97,6 +188,20 @@ export default function LandingPage() {
         onCustomProviderChange={handleCustomProviderChange}
         customModelId={customModelId}
         onCustomModelIdChange={handleCustomModelIdChange}
+        customEndpoint={customEndpoint}
+        onCustomEndpointChange={handleCustomEndpointChange}
+        customThinking={customThinking}
+        onCustomThinkingChange={handleCustomThinkingChange}
+        customKeyGemini={customKeyGemini}
+        onCustomKeyGeminiChange={handleCustomKeyGeminiChange}
+        customKeyNvidia={customKeyNvidia}
+        onCustomKeyNvidiaChange={handleCustomKeyNvidiaChange}
+        customKeyEndpoint={customKeyEndpoint}
+        onCustomKeyEndpointChange={handleCustomKeyEndpointChange}
+        customModelNvidia={customModelNvidia}
+        onCustomModelNvidiaChange={handleCustomModelNvidiaChange}
+        customModelEndpoint={customModelEndpoint}
+        onCustomModelEndpointChange={handleCustomModelEndpointChange}
       />
 
       <main className="flex-1 bg-sketchbook-grid">
@@ -116,7 +221,7 @@ export default function LandingPage() {
                 </SketchBadge>
               </div>
 
-              {/* Hand-Drawn Headline with Drawably aesthetic */}
+              {/* Hand-Drawn Headline */}
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl sm:leading-[1.15] text-[#18181b]">
                 Turn Hand-Drawn{" "}
                 <span className="relative inline-block font-pen text-5xl sm:text-7xl text-[#2724d1]">
@@ -127,7 +232,7 @@ export default function LandingPage() {
 
               {/* Subhead */}
               <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#52525b] max-w-2xl mx-auto">
-                Powered by <strong className="text-[#18181b]">Gemma 4 31B</strong>. Doodle on our digital napkin canvas or drop a real paper wireframe photo to get an instant live sandboxed component and copyable Tailwind code.
+                Powered by <strong className="text-[#18181b]">Sketch2Kernel</strong>. Doodle on our digital napkin canvas or upload a paper wireframe photo to get an instant live sandboxed component and copyable Tailwind code.
               </p>
 
               {/* Primary Sketchbook Action Buttons */}
@@ -135,7 +240,7 @@ export default function LandingPage() {
                 <SketchButton
                   variant="primary"
                   onClick={handleLaunchPlayground}
-                  className="w-full sm:w-auto text-sm py-3 px-8 text-white font-bold shadow-lg"
+                  className="w-full sm:w-auto text-sm py-3 px-8 text-white font-bold shadow-lg gpu-layer will-change-transform"
                 >
                   <PenTool className="size-4" />
                   <span>Launch Playground →</span>
@@ -149,7 +254,7 @@ export default function LandingPage() {
                 >
                   <SketchButton
                     variant="secondary"
-                    className="w-full sm:w-auto text-sm py-3 px-6 text-[#18181b] font-semibold"
+                    className="w-full sm:w-auto text-sm py-3 px-6 text-[#18181b] font-semibold gpu-layer will-change-transform"
                   >
                     <Code2 className="size-4" />
                     <span>View Repository</span>
@@ -157,19 +262,31 @@ export default function LandingPage() {
                 </a>
               </div>
 
-              {/* Drawably / Rough Feature Pills */}
+              {/* Clean Feature Badges (Zero Emojis, Pure Lucide Icons) */}
               <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs">
                 <SketchBadge stroke="#2724d1" fill="rgba(39, 36, 209, 0.06)">
-                  ✏️ HTML5 Freehand Canvas
+                  <span className="flex items-center gap-1.5 text-[#2724d1] font-semibold">
+                    <PenTool className="size-3.5" />
+                    HTML5 Freehand Canvas
+                  </span>
                 </SketchBadge>
                 <SketchBadge stroke="#7c3aed" fill="rgba(124, 58, 237, 0.06)">
-                  📱 Mobile &amp; Touch Friendly
+                  <span className="flex items-center gap-1.5 text-[#7c3aed] font-semibold">
+                    <Smartphone className="size-3.5" />
+                    Mobile &amp; Touch Friendly
+                  </span>
                 </SketchBadge>
                 <SketchBadge stroke="#d12724" fill="rgba(209, 39, 36, 0.06)">
-                  ⚡ Live Tailwind Play CDN
+                  <span className="flex items-center gap-1.5 text-[#d12724] font-semibold">
+                    <Zap className="size-3.5" />
+                    Live Tailwind Play CDN
+                  </span>
                 </SketchBadge>
                 <SketchBadge stroke="#188a42" fill="rgba(24, 138, 66, 0.06)">
-                  🎛️ Live Two-Way Props
+                  <span className="flex items-center gap-1.5 text-[#188a42] font-semibold">
+                    <Sliders className="size-3.5" />
+                    Live Two-Way Props
+                  </span>
                 </SketchBadge>
               </div>
             </div>
@@ -180,7 +297,7 @@ export default function LandingPage() {
                 roughness={1.5}
                 stroke="#18181b"
                 fill="#ffffff"
-                className="rounded-3xl p-4 sm:p-7 shadow-2xl"
+                className="rounded-3xl p-4 sm:p-7 shadow-2xl gpu-layer"
               >
                 {/* Header line */}
                 <div className="flex items-center justify-between border-b-2 border-[#18181b] pb-3 text-xs font-mono">
@@ -216,7 +333,7 @@ export default function LandingPage() {
                       {/* Hand-drawn representation */}
                       <div className="w-full max-w-xs space-y-3 p-4 border-2 border-dashed border-[#2724d1] rounded-xl font-mono text-xs text-[#2724d1]">
                         <div className="flex justify-between items-center border-b-2 border-[#2724d1] pb-2 font-bold">
-                          <span>[ Sketch2UI ]</span>
+                          <span>[ Sketch2Kernel ]</span>
                           <span className="text-[10px]">[ ★ 142 ]</span>
                         </div>
                         <div className="text-[11px] text-[#18181b] leading-tight">
@@ -252,7 +369,7 @@ export default function LandingPage() {
                               Hacktoberfest 2026
                             </span>
                             <h4 className="text-sm font-bold text-[#18181b] mt-0.5">
-                              Sketch2UI
+                              Sketch2Kernel
                             </h4>
                           </div>
                           <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-mono text-[#188a42] font-bold border border-emerald-300">
@@ -276,7 +393,7 @@ export default function LandingPage() {
                         <SketchButton
                           variant="primary"
                           onClick={handleLaunchPlayground}
-                          className="mt-4 w-full text-xs font-bold py-2 shadow-md"
+                          className="mt-4 w-full text-xs font-bold py-2 shadow-md gpu-layer will-change-transform"
                         >
                           Try In Playground →
                         </SketchButton>
@@ -289,8 +406,403 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 3 Core Architected Cards (Drawably & Rough Hand-Drawn Theme) */}
+        {/* SECTION: Supported AI Providers & Inference Engines */}
+        <section className="relative border-t-2 border-[#18181b] bg-[#fdfdfb] py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2724d1]">
+                Multi-Model Infrastructure
+              </span>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#18181b] sm:text-4xl">
+                Choose Your Vision &amp; Inference Engine
+              </h2>
+              <p className="mt-3 text-sm text-[#52525b]">
+                Sketch2Kernel supports native Hacktoberfest Gemma models, ultra-fast NVIDIA NIM inference, and any custom OpenAI-compatible endpoint.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Provider 1: Google Gemini */}
+              <SketchCard
+                roughness={1.5}
+                stroke="#2724d1"
+                fill="#ffffff"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] shadow-xs">
+                    <Sparkles className="size-5 stroke-[2.2]" />
+                  </div>
+                  <span className="font-mono text-[10px] font-bold rounded-full bg-blue-100 text-[#2724d1] px-2.5 py-1 border border-blue-200">
+                    29 RPM Protection
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-[#18181b] font-mono">
+                  Google Gemini Engine
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
+                  Hacktoberfest flagship track powered by <strong className="text-[#18181b]">Gemma 4 31B</strong> with seamless fallback to Gemma 4 26B. Ideal for rich UI comprehension and layout synthesis.
+                </p>
+                <div className="mt-4 pt-4 border-t border-dashed border-zinc-200 flex flex-wrap gap-1.5 font-mono text-[10px]">
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    gemma-4-31b-it
+                  </span>
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    gemma-4-26b-it
+                  </span>
+                </div>
+              </SketchCard>
+
+              {/* Provider 2: NVIDIA NIM */}
+              <SketchCard
+                roughness={1.5}
+                stroke="#7c3aed"
+                fill="#ffffff"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#7c3aed] bg-purple-50 text-[#7c3aed] shadow-xs">
+                    <Cpu className="size-5 stroke-[2.2]" />
+                  </div>
+                  <span className="font-mono text-[10px] font-bold rounded-full bg-purple-100 text-[#7c3aed] px-2.5 py-1 border border-purple-200">
+                    39 RPM Sliding Window
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-[#18181b] font-mono">
+                  NVIDIA NIM Acceleration
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
+                  Enterprise-grade high-throughput endpoints supporting <strong className="text-[#18181b]">z-ai/glm-5.3</strong> and <strong className="text-[#18181b]">meta/llama-3.1-70b-instruct</strong> with optional deep reasoning toggles.
+                </p>
+                <div className="mt-4 pt-4 border-t border-dashed border-zinc-200 flex flex-wrap gap-1.5 font-mono text-[10px]">
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    z-ai/glm-5.3
+                  </span>
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    llama-3.1-70b
+                  </span>
+                </div>
+              </SketchCard>
+
+              {/* Provider 3: Custom Endpoints */}
+              <SketchCard
+                roughness={1.5}
+                stroke="#188a42"
+                fill="#ffffff"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#188a42] bg-emerald-50 text-[#188a42] shadow-xs">
+                    <Globe className="size-5 stroke-[2.2]" />
+                  </div>
+                  <span className="font-mono text-[10px] font-bold rounded-full bg-emerald-100 text-[#188a42] px-2.5 py-1 border border-emerald-200">
+                    OpenAI Compatible
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-[#18181b] font-mono">
+                  Custom &amp; Local Endpoints
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
+                  Plug in any local or cloud LLM runner (Ollama, vLLM, OpenRouter, Groq, Together). Configure your custom endpoint URL, model ID, and private API key.
+                </p>
+                <div className="mt-4 pt-4 border-t border-dashed border-zinc-200 flex flex-wrap gap-1.5 font-mono text-[10px]">
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    Ollama / vLLM
+                  </span>
+                  <span className="bg-zinc-100 border border-zinc-300 rounded px-2 py-0.5 text-zinc-700">
+                    OpenRouter / Groq
+                  </span>
+                </div>
+              </SketchCard>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION: Visual Showcase & Gallery (Drop User GIFs & Pictures) */}
         <section className="relative border-t-2 border-[#18181b] bg-[#eceae1] py-16 sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto mb-10">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2724d1]">
+                Interactive Demonstration
+              </span>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#18181b] sm:text-4xl">
+                See Sketch2Kernel in Action
+              </h2>
+              <p className="mt-2 text-sm text-[#52525b]">
+                Explore how real-time tactile sketch recognition, multi-model compilation, and dynamic live props work together.
+              </p>
+
+              {/* Showcase Tab Switcher */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveShowcaseTab("canvas")}
+                  className={`px-4 py-2 text-xs font-mono font-bold rounded-xl border-2 transition-all cursor-pointer gpu-layer ${
+                    activeShowcaseTab === "canvas"
+                      ? "border-[#2724d1] bg-[#2724d1] text-white shadow-md"
+                      : "border-[#18181b] bg-white text-[#18181b] hover:bg-zinc-100"
+                  }`}
+                >
+                  Napkin Canvas &amp; Tools
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveShowcaseTab("models")}
+                  className={`px-4 py-2 text-xs font-mono font-bold rounded-xl border-2 transition-all cursor-pointer gpu-layer ${
+                    activeShowcaseTab === "models"
+                      ? "border-[#7c3aed] bg-[#7c3aed] text-white shadow-md"
+                      : "border-[#18181b] bg-white text-[#18181b] hover:bg-zinc-100"
+                  }`}
+                >
+                  Multi-Engine AI Synthesis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveShowcaseTab("sandbox")}
+                  className={`px-4 py-2 text-xs font-mono font-bold rounded-xl border-2 transition-all cursor-pointer gpu-layer ${
+                    activeShowcaseTab === "sandbox"
+                      ? "border-[#188a42] bg-[#188a42] text-white shadow-md"
+                      : "border-[#18181b] bg-white text-[#18181b] hover:bg-zinc-100"
+                  }`}
+                >
+                  Live Sandboxed Tailwind
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveShowcaseTab("props")}
+                  className={`px-4 py-2 text-xs font-mono font-bold rounded-xl border-2 transition-all cursor-pointer gpu-layer ${
+                    activeShowcaseTab === "props"
+                      ? "border-[#d12724] bg-[#d12724] text-white shadow-md"
+                      : "border-[#18181b] bg-white text-[#18181b] hover:bg-zinc-100"
+                  }`}
+                >
+                  Two-Way Props Binding
+                </button>
+              </div>
+            </div>
+
+            {/* Showcase Media Card / User GIF Slot */}
+            <div className="mx-auto max-w-5xl">
+              <SketchCard
+                roughness={1.4}
+                stroke="#18181b"
+                fill="#ffffff"
+                className="rounded-3xl p-6 sm:p-8 shadow-2xl gpu-layer"
+              >
+                {/* Tab 1: Napkin Canvas */}
+                {activeShowcaseTab === "canvas" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
+                      <div>
+                        <h3 className="text-lg font-bold font-mono text-[#18181b]">
+                          Tactile Digital Sketchbook &amp; Drawing Suite
+                        </h3>
+                        <p className="text-xs text-[#52525b] mt-0.5">
+                          60fps freehand pen strokes, element stamps, undo/redo history, and photo wireframe upload.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-blue-50 border border-blue-200 px-2 py-1 text-[11px] font-mono text-[#2724d1] font-semibold">
+                          Shortcuts: 1-6 Tools • Ctrl+Z
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SHOWCASE MEDIA CONTAINER
+                        USER INSTRUCTION: To use your own recorded GIF or screenshot,
+                        add your file to public/assets/ (e.g. public/assets/showcase-canvas.gif)
+                        and replace the placeholder below with an <img> tag:
+                        <img src="/assets/showcase-canvas.gif" alt="Canvas in action" className="w-full rounded-2xl border-2 border-[#18181b]" />
+                    */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-[#2724d1] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
+                      {/* Interactive Visual Mock / Drop-in Placeholder */}
+                      <div className="max-w-md space-y-4">
+                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#2724d1] bg-white text-[#2724d1] shadow-md">
+                          <PenTool className="size-7" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-[#18181b] font-mono">
+                            Digital Canvas &amp; Wireframe Stamps
+                          </h4>
+                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
+                            Draw cards, buttons, navbars, and forms directly on authentic notebook paper, or drop a paper napkin photo to compile immediately.
+                          </p>
+                        </div>
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-[#2724d1] font-bold">
+                            Touch + Stylus Ready
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
+                            60fps Stroke Engine
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-purple-700 font-bold">
+                            Lossless PNG Export
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab 2: Multi-Engine AI Synthesis */}
+                {activeShowcaseTab === "models" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
+                      <div>
+                        <h3 className="text-lg font-bold font-mono text-[#18181b]">
+                          Multi-Engine AI Synthesis &amp; Thinking Controls
+                        </h3>
+                        <p className="text-xs text-[#52525b] mt-0.5">
+                          Independent provider tabs for Gemini, NVIDIA NIM, and Custom Endpoints with separate API keys and models.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-purple-50 border border-purple-200 px-2 py-1 text-[11px] font-mono text-[#7c3aed] font-semibold">
+                          Independent Credentials
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SHOWCASE MEDIA CONTAINER
+                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-models.gif
+                    */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-[#7c3aed] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
+                      <div className="max-w-md space-y-4">
+                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#7c3aed] bg-white text-[#7c3aed] shadow-md">
+                          <Cpu className="size-7" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-[#18181b] font-mono">
+                            Multi-Provider Orchestration
+                          </h4>
+                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
+                            Toggle between Gemini Gemma 4 31B, NVIDIA NIM glm-5.3, or private local LLMs. Deep reasoning thinking toggles and sliding-window rate limiters prevent API exhaustion.
+                          </p>
+                        </div>
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-purple-700 font-bold">
+                            Gemini 29 RPM Limiter
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
+                            NVIDIA 39 RPM Limiter
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
+                            Custom OpenAI URL
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab 3: Live Sandboxed Tailwind */}
+                {activeShowcaseTab === "sandbox" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
+                      <div>
+                        <h3 className="text-lg font-bold font-mono text-[#18181b]">
+                          Isolated Live Sandbox &amp; Responsive Viewports
+                        </h3>
+                        <p className="text-xs text-[#52525b] mt-0.5">
+                          Sandboxed iframe with live Tailwind Play CDN, DOMPurify XSS protection, and mobile/tablet/desktop viewports.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-mono text-[#188a42] font-semibold">
+                          CSP &amp; DOMPurify Protected
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SHOWCASE MEDIA CONTAINER
+                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-sandbox.gif
+                    */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-[#188a42] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
+                      <div className="max-w-md space-y-4">
+                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#188a42] bg-white text-[#188a42] shadow-md">
+                          <Eye className="size-7" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-[#18181b] font-mono">
+                            Zero-Latency Tailwind Compilation
+                          </h4>
+                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
+                            Watch synthesized UI execute securely in an isolated runner with viewport switching, instant one-click code export, and confetti celebration on first render!
+                          </p>
+                        </div>
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
+                            Mobile / Tablet / Desktop
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
+                            Copy HTML / JSX
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-zinc-700 font-bold">
+                            Full-Screen Mode
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab 4: Two-Way Props Binding */}
+                {activeShowcaseTab === "props" && (
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-zinc-200 pb-4">
+                      <div>
+                        <h3 className="text-lg font-bold font-mono text-[#18181b]">
+                          Two-Way Dynamic Props Panel
+                        </h3>
+                        <p className="text-xs text-[#52525b] mt-0.5">
+                          Synthesized components expose interactive text, color, and numeric properties that re-render live on keyup.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-red-50 border border-red-200 px-2 py-1 text-[11px] font-mono text-[#d12724] font-semibold">
+                          Real-Time Prop Sync
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SHOWCASE MEDIA CONTAINER
+                        USER INSTRUCTION: Add your recorded GIF to public/assets/showcase-props.gif
+                    */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-[#d12724] bg-[#faf9f5] p-8 min-h-[320px] sm:min-h-[420px] flex flex-col items-center justify-center text-center overflow-hidden">
+                      <div className="max-w-md space-y-4">
+                        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border-2 border-[#d12724] bg-white text-[#d12724] shadow-md">
+                          <Sliders className="size-7" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-[#18181b] font-mono">
+                            Live Interactive Tuning
+                          </h4>
+                          <p className="text-xs text-[#52525b] mt-1.5 leading-relaxed">
+                            No re-compilation needed! Edit headline copy, tweak button labels, change prices, or adjust badge styles in real time directly inside the Props panel.
+                          </p>
+                        </div>
+                        <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-red-700 font-bold">
+                            Live Two-Way Binding
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-blue-700 font-bold">
+                            Zod Schema Validated
+                          </span>
+                          <span className="bg-white border border-zinc-300 rounded px-2.5 py-1 text-emerald-700 font-bold">
+                            Instant State Update
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </SketchCard>
+            </div>
+          </div>
+        </section>
+
+        {/* 3 Core Architecture Cards */}
+        <section className="relative border-t-2 border-[#18181b] bg-[#fdfdfb] py-16 sm:py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-14">
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2724d1]">
@@ -310,7 +822,7 @@ export default function LandingPage() {
                 roughness={1.5}
                 stroke="#2724d1"
                 fill="#ffffff"
-                className="p-6 transition-all hover:scale-102 rounded-2xl"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
               >
                 <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] mb-5 shadow-xs">
                   <PenTool className="size-5 stroke-[2.2]" />
@@ -319,7 +831,7 @@ export default function LandingPage() {
                   Dual-Mode Drawing Board
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-[#52525b]">
-                  Continuous 60fps solid strokes with mouse, Apple Pencil, or mobile touch. Includes draggable Drawably element stamps and real napkin photo upload.
+                  Continuous 60fps solid strokes with mouse, Apple Pencil, or mobile touch. Includes draggable element stamps and real napkin photo upload.
                 </p>
               </SketchCard>
 
@@ -328,7 +840,7 @@ export default function LandingPage() {
                 roughness={1.5}
                 stroke="#7c3aed"
                 fill="#ffffff"
-                className="p-6 transition-all hover:scale-102 rounded-2xl"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
               >
                 <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#7c3aed] bg-purple-50 text-[#7c3aed] mb-5 shadow-xs">
                   <Zap className="size-5 stroke-[2.2]" />
@@ -346,7 +858,7 @@ export default function LandingPage() {
                 roughness={1.5}
                 stroke="#188a42"
                 fill="#ffffff"
-                className="p-6 transition-all hover:scale-102 rounded-2xl"
+                className="p-6 transition-all hover:scale-102 rounded-2xl gpu-layer will-change-transform"
               >
                 <div className="flex size-11 items-center justify-center rounded-xl border-2 border-[#188a42] bg-emerald-50 text-[#188a42] mb-5 shadow-xs">
                   <Sliders className="size-5 stroke-[2.2]" />
@@ -369,7 +881,7 @@ export default function LandingPage() {
               roughness={1.6}
               stroke="#18181b"
               fill="#ffffff"
-              className="p-8 sm:p-12 text-center shadow-xl rounded-3xl"
+              className="p-8 sm:p-12 text-center shadow-xl rounded-3xl gpu-layer"
             >
               <h3 className="text-2xl sm:text-3xl font-extrabold text-[#18181b]">
                 Ready to sketch your Hacktoberfest component?
@@ -381,7 +893,7 @@ export default function LandingPage() {
                 <SketchButton
                   variant="primary"
                   onClick={handleLaunchPlayground}
-                  className="text-sm py-3 px-8 text-white font-bold"
+                  className="text-sm py-3 px-8 text-white font-bold gpu-layer will-change-transform"
                 >
                   <span>Launch Playground Now →</span>
                 </SketchButton>
@@ -395,7 +907,7 @@ export default function LandingPage() {
       <footer className="border-t-2 border-[#18181b] bg-[#eceae1] py-8 text-xs text-[#52525b]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#18181b]">Sketch2UI</span>
+            <span className="font-bold text-[#18181b]">Sketch2Kernel</span>
             <span>•</span>
             <span>Hacktoberfest 2026 Open Source Project</span>
           </div>
@@ -409,20 +921,20 @@ export default function LandingPage() {
               GitHub Repo
             </a>
             <a
-              href="https://github.com/Pierce05/sketch-to-kernel/issues/2"
+              href="https://github.com/Pierce05/sketch-to-kernel/issues/42"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#2724d1] transition-colors"
             >
-              Issue #2
+              Issue #42
             </a>
             <a
-              href="https://github.com/Pierce05/sketch-to-kernel/pull/5"
+              href="https://github.com/Pierce05/sketch-to-kernel/pull/41"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#2724d1] transition-colors"
             >
-              PR #5
+              PR #41
             </a>
           </div>
         </div>
