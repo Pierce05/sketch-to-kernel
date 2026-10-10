@@ -65,12 +65,12 @@ async function compile() {
 
   console.log(`[SketchCompiler] Invoking Gemma 4 model: ${modelName}...`);
 
-  const promptText = `You are an expert Tailwind CSS frontend architect.
-Convert the provided hand-drawn UI wireframe into a modern, clean, responsive HTML component using Tailwind CSS utility classes.
+  const promptText = `You are an expert web component frontend architect.
+Convert the provided hand-drawn UI wireframe into a modern, clean, responsive HTML web component.
 DO NOT wrap the output in markdown code blocks. Output ONLY raw, parseable JSON conforming to:
 {
   "componentName": "string",
-  "html": "string containing pure HTML with Tailwind classes",
+  "html": "string containing pure HTML web component markup",
   "props": [
     { "name": "string", "type": "string", "default": "string", "description": "string" }
   ]

@@ -43,7 +43,7 @@ describe("sanitizeHtml: blocks", () => {
 });
 
 describe("sanitizeHtml: keeps", () => {
-  it("tailwind classes and structure", () => {
+  it("css classes and component structure", () => {
     const out = sanitizeHtml('<div class="p-4 md:flex hover:bg-blue-500"><button type="button">Go</button></div>');
     expect(out).toContain('class="p-4 md:flex hover:bg-blue-500"');
     expect(out).toContain("<button");

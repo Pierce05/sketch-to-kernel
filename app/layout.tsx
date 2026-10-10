@@ -3,16 +3,17 @@ import { InkBlobProvider } from "@/components/ink-blob-transition";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sketch2Kernel — Hand-Drawn Napkin Sketches into Tailwind Components",
+  title: "Sketch2Kernel — Hand-Drawn Napkin Sketches into Web Components",
   description:
-    "Turn hand-drawn napkin wireframes into pure Tailwind CSS components in seconds using Google Gemma 4, NVIDIA NIM, and Custom Endpoints. Built like an interactive digital sketchbook with Rough.js and live sandbox execution.",
+    "Turn hand-drawn napkin wireframes into web components in seconds using Google Gemma 4, NVIDIA NIM, and Custom Endpoints. Built like an interactive digital sketchbook with Rough.js and live sandbox execution.",
   keywords: [
     "Sketch2Kernel",
     "Sketch to Kernel",
     "Gemma 4",
     "NVIDIA NIM",
     "Rough.js",
-    "Tailwind CSS",
+    "Web Components",
+    "HTML5",
     "Hacktoberfest 2026",
     "Wireframe to Code",
     "Canvas",

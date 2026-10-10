@@ -99,7 +99,7 @@ export function SandboxPanel({
     return html;
   }, [compileResult, propValues]);
 
-  // Construct iframe srcDoc with Tailwind Play CDN
+  // Construct iframe srcDoc with live web styling and runner
   const iframeSrcDoc = useMemo(() => {
     if (!interpolatedHtml) return "";
 
@@ -242,7 +242,7 @@ export function SandboxPanel({
             onClick={handleCopyCode}
             disabled={!interpolatedHtml}
             className="text-xs font-bold py-1 px-3"
-            title="Copy Tailwind HTML"
+            title="Copy Web Component Code"
           >
             {copied ? (
               <>
@@ -276,7 +276,7 @@ export function SandboxPanel({
                 <iframe
                   sandbox="allow-scripts"
                   srcDoc={iframeSrcDoc}
-                  title="Compiled Tailwind Component Preview"
+                  title="Compiled Web Component Preview"
                   className="size-full rounded-lg border-0 block"
                 />
               </div>
@@ -298,7 +298,7 @@ export function SandboxPanel({
               Live Sandbox Awaiting Compilation
             </h4>
             <p className="mt-1 text-xs text-[#52525b] max-w-xs leading-relaxed">
-              Doodle a napkin wireframe on the left drawing board and click &ldquo;Compile Component&rdquo; to see instant live Tailwind rendering with editable props.
+              Doodle a napkin wireframe on the left drawing board and click &ldquo;Compile Component&rdquo; to see instant live web component rendering with editable props.
             </p>
           </div>
         )}
