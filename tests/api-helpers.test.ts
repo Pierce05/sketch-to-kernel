@@ -216,7 +216,35 @@ describe("Thinking payload kwargs", () => {
       expect(capturedBody?.extra_body).toEqual({
         chat_template_kwargs: { enable_thinking: true },
       });
+      expect(capturedBody?.reasoning_effort).toBeUndefined();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+    it("sends reasoning_effort=low by default for NVIDIA NIM", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    const originalFetch = global.fetch;
+    global.fetch = (async (_url: unknown, options: { body?: string }) => {
+      if (options?.body) {
+        capturedBody = JSON.parse(options.body);
+      }
+      return new Response("data: [DONE]\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    try {
+      const { compileWithNvidiaNim } = await import("../lib/nvidia-nim");
+      await compileWithNvidiaNim({
+        apiKey: "nvapi-test-key",
+        modelId: "z-ai/glm-5.3-flash",
+        imageDataUrl: "data:image/png;base64,AAAA",
+        wireframeDescription: "button and input wireframe",
+      });
+
       expect(capturedBody?.reasoning_effort).toBe("low");
+      expect(capturedBody?.extra_body).toBeUndefined();
     } finally {
       global.fetch = originalFetch;
     }
