@@ -3,17 +3,30 @@ import { z } from "zod";
 export const ApiKeyModeSchema = z.enum(["default_1", "default_2", "custom"]);
 export const CustomProviderSchema = z.enum(["gemini", "nvidia"]);
 
-export const CompileRequestSchema = z.object({
-  image: z
-    .string({ required_error: "image data URL is required" })
-    .min(10, "image data URL must not be empty")
-    .max(7_000_000, "image is too large; use a smaller sketch"),
-  apiKeyType: ApiKeyModeSchema,
-  customProvider: CustomProviderSchema.optional().default("gemini"),
-  customApiKey: z.string().max(512).optional(),
-  customModelId: z.string().max(200).optional(),
-  wireframeDescription: z.string().max(50000).optional(),
-});
+export const CompileRequestSchema = z
+  .object({
+    image: z
+      .string({ required_error: "image data URL is required" })
+      .min(10, "image data URL must not be empty")
+      .max(7_000_000, "image is too large; use a smaller sketch"),
+    apiKeyType: ApiKeyModeSchema,
+    customProvider: CustomProviderSchema.optional().default("gemini"),
+    customApiKey: z.string().max(512).optional(),
+    customModelId: z.string().max(200).optional(),
+    wireframeDescription: z.string().max(50000).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.apiKeyType === "custom") {
+        return typeof data.customApiKey === "string" && data.customApiKey.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: "customApiKey is required when apiKeyType is 'custom'",
+      path: ["customApiKey"],
+    },
+  );
 
 export const ComponentPropSchema = z.object({
   name: z.string().min(1, "prop name is required"),

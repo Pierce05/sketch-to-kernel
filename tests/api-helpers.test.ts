@@ -56,3 +56,32 @@ describe("getClientIp", () => {
     expect(getClientIp(new Headers())).toBe("unknown");
   });
 });
+
+describe("api-rate-limiter (takeApiSlot & keyId)", () => {
+  it("formats keyId with provider prefix", async () => {
+    const { keyId } = await import("../lib/api-rate-limiter");
+    expect(keyId("gemini", "AIzaSyD1234567890123456")).toBe("gemini:1234567890123456");
+    expect(keyId("nvidia", "nvapi-1234567890123456")).toBe("nvidia:1234567890123456");
+  });
+
+  it("enforces rate limits atomically and calculates retry cooldown", async () => {
+    const { takeApiSlot } = await import("../lib/api-rate-limiter");
+    const testKey = "test-provider:unique-unit-test-key";
+    const baseTime = 100_000;
+
+    // Allow up to limit (e.g. 3 RPM)
+    expect(takeApiSlot(testKey, 3, baseTime).allowed).toBe(true);
+    expect(takeApiSlot(testKey, 3, baseTime + 1000).allowed).toBe(true);
+    expect(takeApiSlot(testKey, 3, baseTime + 2000).allowed).toBe(true);
+
+    // 4th request within 60s window should be blocked
+    const blocked = takeApiSlot(testKey, 3, baseTime + 3000);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.remaining).toBe(0);
+    expect(blocked.retryAfterSeconds).toBeGreaterThanOrEqual(1);
+
+    // After 60s passes from first request, slot should free up
+    const afterWindow = takeApiSlot(testKey, 3, baseTime + 61_000);
+    expect(afterWindow.allowed).toBe(true);
+  });
+});

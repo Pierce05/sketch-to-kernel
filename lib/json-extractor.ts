@@ -205,7 +205,7 @@ export function extractOutermostHtml(str: string): string | null {
 /**
  * Attempts regex extraction of componentName and html from malformed JSON
  */
-export function extractHtmlViaRegex(str: string): { componentName: string | null; html: string; props: ExtractedComponentProp[] } | null {
+export function extractHtmlViaRegex(str: string): { componentName: string | null; html: string } | null {
   const compMatch = str.match(/"componentName"\s*:\s*"([^"]+)"/i);
   const componentName = compMatch ? compMatch[1].trim() : null;
 
@@ -221,7 +221,7 @@ export function extractHtmlViaRegex(str: string): { componentName: string | null
       .replace(/\\t/g, "\t")
       .replace(/\\r/g, "");
     if (containsHtmlTags(unescaped)) {
-      return { html: unescaped, componentName, props: [] };
+      return { html: unescaped, componentName };
     }
   }
   return null;
@@ -231,6 +231,8 @@ export function extractHtmlViaRegex(str: string): { componentName: string | null
  * Extracts a typed JSON object from raw text.
  * Falls back to repairing common JSON syntax errors.
  */
+// NOTE: Empty catch blocks below are intentional. Each parse strategy silently
+// falls through to the next on failure: raw JSON → repaired JSON → substring → error.
 export function extractFencedJson<T = unknown>(rawText: string): T {
   if (!rawText || typeof rawText !== "string") {
     throw new Error("Empty or non-string response received from model");
@@ -380,11 +382,10 @@ export function extractCompilePayload(
   // Strategy 4: Regex-based extraction of "html" and "componentName"
   const regexExtracted = extractHtmlViaRegex(text);
   if (regexExtracted) {
-    const rawProps = regexExtracted.props || [];
     return {
       componentName: regexExtracted.componentName || deriveComponentName(regexExtracted.html, fallbackName),
       html: regexExtracted.html,
-      props: rawProps.length > 0 ? rawProps : synthesizePropsFromHtml(regexExtracted.html),
+      props: synthesizePropsFromHtml(regexExtracted.html),
     };
   }
 
