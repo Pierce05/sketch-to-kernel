@@ -252,14 +252,25 @@ export default function PlaygroundPage() {
         console.error("Local custom endpoint compilation failed:", errString);
         let userMsg = errString;
         if (
+          errString.includes("405") ||
+          errString.includes("Method Not Allowed")
+        ) {
+          userMsg =
+            `Local Server Error 405 Method Not Allowed (${customEndpoint}): ` +
+            `Your local server rejected the browser's CORS preflight (OPTIONS) request. ` +
+            `To fix this: ` +
+            `1) In FastAPI, add CORSMiddleware with allow_origins=["*"] and allow_methods=["*"]. ` +
+            `2) In Flask, add flask_cors.CORS(app). ` +
+            `3) In Ollama, launch with OLLAMA_ORIGINS="*".`;
+        } else if (
           errString.includes("Failed to fetch") ||
           errString.includes("NetworkError") ||
           errString.includes("fetch failed")
         ) {
           userMsg =
             `Local Endpoint Connection Failed (${customEndpoint}): ` +
-            `1) Make sure your local server (Ollama, vLLM, LM Studio) is running. ` +
-            `2) Enable CORS (for Ollama: set OLLAMA_ORIGINS="*"). ` +
+            `1) Make sure your local server (FastAPI, Ollama, vLLM, LM Studio) is running. ` +
+            `2) Enable CORS (e.g. FastAPI CORSMiddleware or OLLAMA_ORIGINS="*"). If server returned 405 to OPTIONS requests, enable OPTIONS handling. ` +
             `3) If your browser blocks HTTPS to HTTP mixed content, expose your port with an HTTPS tunnel like "cloudflared tunnel --url http://127.0.0.1:8000" or "ngrok http 8000" and use the https:// URL.`;
         }
         setErrorMessage(userMsg);
