@@ -1974,22 +1974,9 @@ export function CanvasPanel({
           </div>
         )}
 
-        {/* Canvas Locked Overlay while Compiling */}
+        {/* Canvas Locked Overlay while Compiling: dim canvas without text */}
         {isCompiling && (
-          <div className="absolute inset-0 z-40 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center cursor-not-allowed select-none">
-            <div className="flex items-center gap-2.5 rounded-2xl border-2 border-[#18181b] bg-[#eceae1] px-5 py-3 font-mono text-xs font-bold text-[#18181b] shadow-xl">
-              <svg
-                className="size-4 animate-spin text-[#2724d1]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-              </svg>
-              <span>{compileStatusText} Canvas drawing is temporarily locked.</span>
-            </div>
-          </div>
+          <div className="absolute inset-0 z-40 bg-black/15 backdrop-blur-[1px] cursor-not-allowed select-none transition-opacity" />
         )}
       </div>
 
@@ -2031,7 +2018,7 @@ export function CanvasPanel({
               >
                 <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
               </svg>
-              <span>{compileStatusText}</span>
+              <span>Compiling...</span>
             </>
           ) : (
             <>

@@ -13,6 +13,11 @@ import {
   STORAGE_CUSTOM_MODEL,
   STORAGE_CUSTOM_ENDPOINT,
   STORAGE_CUSTOM_THINKING,
+  STORAGE_CUSTOM_KEY_GEMINI,
+  STORAGE_CUSTOM_KEY_NVIDIA,
+  STORAGE_CUSTOM_KEY_ENDPOINT,
+  STORAGE_CUSTOM_MODEL_NVIDIA,
+  STORAGE_CUSTOM_MODEL_ENDPOINT,
 } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers, ShieldAlert } from "lucide-react";
@@ -21,7 +26,12 @@ export default function PlaygroundPage() {
   const [apiKeyMode, setApiKeyMode] = useState<ApiKeyMode>("default_1");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
-  const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
+  const [customKeyGemini, setCustomKeyGemini] = useState("");
+  const [customKeyNvidia, setCustomKeyNvidia] = useState("");
+  const [customKeyEndpoint, setCustomKeyEndpoint] = useState("");
+  const [customModelNvidia, setCustomModelNvidia] = useState("meta/llama-3.1-70b-instruct");
+  const [customModelEndpoint, setCustomModelEndpoint] = useState("gpt-4o");
+  const [customModelId, setCustomModelId] = useState("meta/llama-3.1-70b-instruct");
   const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
   const [customThinking, setCustomThinking] = useState(false);
 
@@ -42,6 +52,34 @@ export default function PlaygroundPage() {
       if (savedKey) setCustomApiKey(savedKey);
       const savedProvider = localStorage.getItem(STORAGE_CUSTOM_PROVIDER) as CustomProvider;
       if (savedProvider) setCustomProvider(savedProvider);
+
+      const savedKeyGemini = localStorage.getItem(STORAGE_CUSTOM_KEY_GEMINI);
+      if (savedKeyGemini) {
+        setCustomKeyGemini(savedKeyGemini);
+      } else if (savedProvider === "gemini" && savedKey) {
+        setCustomKeyGemini(savedKey);
+      }
+
+      const savedKeyNvidia = localStorage.getItem(STORAGE_CUSTOM_KEY_NVIDIA);
+      if (savedKeyNvidia) {
+        setCustomKeyNvidia(savedKeyNvidia);
+      } else if (savedProvider === "nvidia" && savedKey) {
+        setCustomKeyNvidia(savedKey);
+      }
+
+      const savedKeyEndpoint = localStorage.getItem(STORAGE_CUSTOM_KEY_ENDPOINT);
+      if (savedKeyEndpoint) {
+        setCustomKeyEndpoint(savedKeyEndpoint);
+      } else if (savedProvider === "custom" && savedKey) {
+        setCustomKeyEndpoint(savedKey);
+      }
+
+      const savedModelNvidia = localStorage.getItem(STORAGE_CUSTOM_MODEL_NVIDIA);
+      if (savedModelNvidia) setCustomModelNvidia(savedModelNvidia);
+
+      const savedModelEndpoint = localStorage.getItem(STORAGE_CUSTOM_MODEL_ENDPOINT);
+      if (savedModelEndpoint) setCustomModelEndpoint(savedModelEndpoint);
+
       const savedModel = localStorage.getItem(STORAGE_CUSTOM_MODEL);
       if (savedModel) setCustomModelId(savedModel);
       const savedEndpoint = localStorage.getItem(STORAGE_CUSTOM_ENDPOINT);
@@ -69,6 +107,41 @@ export default function PlaygroundPage() {
     setCustomProvider(provider);
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_CUSTOM_PROVIDER, provider);
+    }
+  };
+
+  const handleCustomKeyGeminiChange = (key: string) => {
+    setCustomKeyGemini(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_GEMINI, key);
+    }
+  };
+
+  const handleCustomKeyNvidiaChange = (key: string) => {
+    setCustomKeyNvidia(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_NVIDIA, key);
+    }
+  };
+
+  const handleCustomKeyEndpointChange = (key: string) => {
+    setCustomKeyEndpoint(key);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_KEY_ENDPOINT, key);
+    }
+  };
+
+  const handleCustomModelNvidiaChange = (model: string) => {
+    setCustomModelNvidia(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL_NVIDIA, model);
+    }
+  };
+
+  const handleCustomModelEndpointChange = (model: string) => {
+    setCustomModelEndpoint(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_MODEL_ENDPOINT, model);
     }
   };
 
@@ -101,6 +174,24 @@ export default function PlaygroundPage() {
     setIsCompiling(true);
     setErrorMessage(null);
 
+    const effectiveKey =
+      apiKeyMode === "custom"
+        ? (customProvider === "gemini"
+            ? customKeyGemini || customApiKey
+            : customProvider === "nvidia"
+            ? customKeyNvidia || customApiKey
+            : customKeyEndpoint || customApiKey)
+        : undefined;
+
+    const effectiveModel =
+      apiKeyMode === "custom"
+        ? (customProvider === "nvidia"
+            ? customModelNvidia || "meta/llama-3.1-70b-instruct"
+            : customProvider === "custom"
+            ? customModelEndpoint || "gpt-4o"
+            : undefined)
+        : undefined;
+
     const payload: CompileRequest = {
       image: imageDataUrl,
       apiKeyType: apiKeyMode,
@@ -109,8 +200,8 @@ export default function PlaygroundPage() {
       ...(apiKeyMode === "custom"
         ? {
             customProvider,
-            customApiKey: customApiKey || undefined,
-            customModelId: customModelId || undefined,
+            customApiKey: effectiveKey || undefined,
+            customModelId: effectiveModel || undefined,
             customEndpoint: customEndpoint || undefined,
           }
         : {}),
@@ -202,6 +293,16 @@ export default function PlaygroundPage() {
         onCustomEndpointChange={handleCustomEndpointChange}
         customThinking={customThinking}
         onCustomThinkingChange={handleCustomThinkingChange}
+        customKeyGemini={customKeyGemini}
+        onCustomKeyGeminiChange={handleCustomKeyGeminiChange}
+        customKeyNvidia={customKeyNvidia}
+        onCustomKeyNvidiaChange={handleCustomKeyNvidiaChange}
+        customKeyEndpoint={customKeyEndpoint}
+        onCustomKeyEndpointChange={handleCustomKeyEndpointChange}
+        customModelNvidia={customModelNvidia}
+        onCustomModelNvidiaChange={handleCustomModelNvidiaChange}
+        customModelEndpoint={customModelEndpoint}
+        onCustomModelEndpointChange={handleCustomModelEndpointChange}
       />
 
       {/* Error / Rate Limit Notice Banner */}
@@ -260,7 +361,13 @@ export default function PlaygroundPage() {
               onCompile={handleCompile}
               isCompiling={isCompiling}
               compileProvider={customProvider}
-              compileModelId={customModelId}
+              compileModelId={
+                apiKeyMode === "default_2"
+                  ? "z-ai/glm-5.3"
+                  : customProvider === "nvidia"
+                  ? customModelNvidia
+                  : customModelEndpoint
+              }
               apiKeyMode={apiKeyMode}
             />
           </div>

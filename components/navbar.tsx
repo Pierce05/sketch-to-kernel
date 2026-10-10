@@ -11,6 +11,11 @@ import {
   STORAGE_CUSTOM_MODEL,
   STORAGE_CUSTOM_ENDPOINT,
   STORAGE_CUSTOM_THINKING,
+  STORAGE_CUSTOM_KEY_GEMINI,
+  STORAGE_CUSTOM_KEY_NVIDIA,
+  STORAGE_CUSTOM_KEY_ENDPOINT,
+  STORAGE_CUSTOM_MODEL_NVIDIA,
+  STORAGE_CUSTOM_MODEL_ENDPOINT,
 } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
 import {
@@ -47,6 +52,16 @@ interface NavbarProps {
   onCustomEndpointChange?: (endpoint: string) => void;
   customThinking?: boolean;
   onCustomThinkingChange?: (thinking: boolean) => void;
+  customKeyGemini?: string;
+  onCustomKeyGeminiChange?: (key: string) => void;
+  customKeyNvidia?: string;
+  onCustomKeyNvidiaChange?: (key: string) => void;
+  customKeyEndpoint?: string;
+  onCustomKeyEndpointChange?: (key: string) => void;
+  customModelNvidia?: string;
+  onCustomModelNvidiaChange?: (model: string) => void;
+  customModelEndpoint?: string;
+  onCustomModelEndpointChange?: (model: string) => void;
 }
 
 export function Navbar({
@@ -56,22 +71,35 @@ export function Navbar({
   onCustomApiKeyChange,
   customProvider = "gemini",
   onCustomProviderChange,
-  customModelId = "z-ai/glm-5.3",
+  customModelId = "meta/llama-3.1-70b-instruct",
   onCustomModelIdChange,
   customEndpoint = "https://api.openai.com/v1/chat/completions",
   onCustomEndpointChange,
   customThinking = false,
   onCustomThinkingChange,
+  customKeyGemini = "",
+  onCustomKeyGeminiChange,
+  customKeyNvidia = "",
+  onCustomKeyNvidiaChange,
+  customKeyEndpoint = "",
+  onCustomKeyEndpointChange,
+  customModelNvidia = "meta/llama-3.1-70b-instruct",
+  onCustomModelNvidiaChange,
+  customModelEndpoint = "gpt-4o",
+  onCustomModelEndpointChange,
 }: NavbarProps) {
   const pathname = usePathname();
   const { navigateWithBlob } = useInkBlobRouter();
   const [mounted, setMounted] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
 
-  // Modal draft state
+  // Modal draft state - separate per tab
   const [activeTab, setActiveTab] = useState<CustomProvider>(customProvider);
-  const [tempKey, setTempKey] = useState(customApiKey);
-  const [tempModel, setTempModel] = useState(customModelId || "z-ai/glm-5.3");
+  const [geminiKey, setGeminiKey] = useState(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
+  const [nvidiaKey, setNvidiaKey] = useState(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
+  const [endpointKey, setEndpointKey] = useState(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
+  const [nvidiaModel, setNvidiaModel] = useState(customModelNvidia || "meta/llama-3.1-70b-instruct");
+  const [endpointModel, setEndpointModel] = useState(customModelEndpoint || "gpt-4o");
   const [tempEndpoint, setTempEndpoint] = useState(customEndpoint || "https://api.openai.com/v1/chat/completions");
   const [tempThinking, setTempThinking] = useState(customThinking);
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
@@ -83,19 +111,35 @@ export function Navbar({
   }, []);
 
   useEffect(() => {
-    setTempKey(customApiKey);
     setActiveTab(customProvider);
-    setTempModel(customModelId || "z-ai/glm-5.3");
+    setGeminiKey(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
+    setNvidiaKey(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
+    setEndpointKey(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
+    setNvidiaModel(customModelNvidia || "meta/llama-3.1-70b-instruct");
+    setEndpointModel(customModelEndpoint || "gpt-4o");
     setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
     setTempThinking(customThinking);
-  }, [customApiKey, customProvider, customModelId, customEndpoint, customThinking]);
+  }, [
+    customApiKey,
+    customProvider,
+    customKeyGemini,
+    customKeyNvidia,
+    customKeyEndpoint,
+    customModelNvidia,
+    customModelEndpoint,
+    customEndpoint,
+    customThinking,
+  ]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
     if (mode === "custom") {
       setPreviousMode(apiKeyMode);
       setActiveTab(customProvider);
-      setTempKey(customApiKey);
-      setTempModel(customModelId || "z-ai/glm-5.3");
+      setGeminiKey(customKeyGemini || (customProvider === "gemini" ? customApiKey : ""));
+      setNvidiaKey(customKeyNvidia || (customProvider === "nvidia" ? customApiKey : ""));
+      setEndpointKey(customKeyEndpoint || (customProvider === "custom" ? customApiKey : ""));
+      setNvidiaModel(customModelNvidia || "meta/llama-3.1-70b-instruct");
+      setEndpointModel(customModelEndpoint || "gpt-4o");
       setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
       setTempThinking(customThinking);
       setShowKeyModal(true);
@@ -107,29 +151,64 @@ export function Navbar({
   const handleCloseModal = () => {
     setShowKeyModal(false);
     // If closing without saved custom key, revert cleanly to previous mode
-    if (!customApiKey) {
+    const activeKey =
+      activeTab === "gemini"
+        ? geminiKey
+        : activeTab === "nvidia"
+        ? nvidiaKey
+        : endpointKey;
+    if (!activeKey && !customApiKey) {
       onApiKeyModeChange(previousMode === "custom" ? "default_1" : previousMode);
     }
   };
 
   const handleSaveCustomKey = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const trimmedKey = tempKey.trim();
-    const trimmedModel = tempModel.trim() || (activeTab === "custom" ? "gpt-4o" : "z-ai/glm-5.3");
+    const trimmedGeminiKey = geminiKey.trim();
+    const trimmedNvidiaKey = nvidiaKey.trim();
+    const trimmedEndpointKey = endpointKey.trim();
+    const trimmedNvidiaModel = nvidiaModel.trim() || "meta/llama-3.1-70b-instruct";
+    const trimmedEndpointModel = endpointModel.trim() || "gpt-4o";
     const trimmedEndpoint = tempEndpoint.trim() || "https://api.openai.com/v1/chat/completions";
 
-    if (activeTab === "custom" ? trimmedEndpoint : trimmedKey) {
-      onCustomApiKeyChange(trimmedKey);
+    let activeKey = "";
+    let activeModel = "";
+
+    if (activeTab === "gemini") {
+      activeKey = trimmedGeminiKey;
+      activeModel = "";
+    } else if (activeTab === "nvidia") {
+      activeKey = trimmedNvidiaKey;
+      activeModel = trimmedNvidiaModel;
+    } else {
+      activeKey = trimmedEndpointKey;
+      activeModel = trimmedEndpointModel;
+    }
+
+    if (activeTab === "custom" ? trimmedEndpoint : activeKey) {
+      onCustomKeyGeminiChange?.(trimmedGeminiKey);
+      onCustomKeyNvidiaChange?.(trimmedNvidiaKey);
+      onCustomKeyEndpointChange?.(trimmedEndpointKey);
+      onCustomModelNvidiaChange?.(trimmedNvidiaModel);
+      onCustomModelEndpointChange?.(trimmedEndpointModel);
+
+      onCustomApiKeyChange(activeKey);
       onCustomProviderChange?.(activeTab);
-      onCustomModelIdChange?.(trimmedModel);
+      onCustomModelIdChange?.(activeModel);
       onCustomEndpointChange?.(trimmedEndpoint);
       onCustomThinkingChange?.(tempThinking);
       onApiKeyModeChange("custom");
 
       if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_CUSTOM_KEY, trimmedKey);
+        localStorage.setItem(STORAGE_CUSTOM_KEY_GEMINI, trimmedGeminiKey);
+        localStorage.setItem(STORAGE_CUSTOM_KEY_NVIDIA, trimmedNvidiaKey);
+        localStorage.setItem(STORAGE_CUSTOM_KEY_ENDPOINT, trimmedEndpointKey);
+        localStorage.setItem(STORAGE_CUSTOM_MODEL_NVIDIA, trimmedNvidiaModel);
+        localStorage.setItem(STORAGE_CUSTOM_MODEL_ENDPOINT, trimmedEndpointModel);
+
+        localStorage.setItem(STORAGE_CUSTOM_KEY, activeKey);
         localStorage.setItem(STORAGE_CUSTOM_PROVIDER, activeTab);
-        localStorage.setItem(STORAGE_CUSTOM_MODEL, trimmedModel);
+        localStorage.setItem(STORAGE_CUSTOM_MODEL, activeModel);
         localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, trimmedEndpoint);
         localStorage.setItem(STORAGE_CUSTOM_THINKING, String(tempThinking));
         localStorage.setItem(STORAGE_KEY_MODE, "custom");
@@ -333,8 +412,8 @@ export function Navbar({
                       <div className="relative">
                         <input
                           type={showKeySecret ? "text" : "password"}
-                          value={tempKey}
-                          onChange={(e) => setTempKey(e.target.value)}
+                          value={geminiKey}
+                          onChange={(e) => setGeminiKey(e.target.value)}
                           placeholder="AIzaSy..."
                           autoFocus
                           className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2.5 pr-10 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#2724d1] focus:outline-none"
@@ -362,13 +441,13 @@ export function Navbar({
                       </label>
                       <input
                         type="text"
-                        value={tempModel}
-                        onChange={(e) => setTempModel(e.target.value)}
-                        placeholder="z-ai/glm-5.3"
+                        value={nvidiaModel}
+                        onChange={(e) => setNvidiaModel(e.target.value)}
+                        placeholder="meta/llama-3.1-70b-instruct"
                         className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#059669] focus:outline-none"
                       />
                       <p className="mt-1 text-[11px] text-[#71717a] font-mono">
-                        Target model (e.g. <code className="text-[#059669] font-bold">z-ai/glm-5.3</code> or meta/llama-3.1-70b-instruct).
+                        Target model (e.g. <code className="text-[#059669] font-bold">meta/llama-3.1-70b-instruct</code>, <code className="text-[#059669] font-bold">meta/llama-3.3-70b-instruct</code>, or deepseek-ai/deepseek-r1).
                       </p>
                     </div>
 
@@ -380,8 +459,8 @@ export function Navbar({
                       <div className="relative">
                         <input
                           type={showKeySecret ? "text" : "password"}
-                          value={tempKey}
-                          onChange={(e) => setTempKey(e.target.value)}
+                          value={nvidiaKey}
+                          onChange={(e) => setNvidiaKey(e.target.value)}
                           placeholder="nvapi-..."
                           className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2.5 pr-10 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#059669] focus:outline-none"
                         />
@@ -466,8 +545,8 @@ export function Navbar({
                       </label>
                       <input
                         type="text"
-                        value={tempModel}
-                        onChange={(e) => setTempModel(e.target.value)}
+                        value={endpointModel}
+                        onChange={(e) => setEndpointModel(e.target.value)}
                         placeholder="gpt-4o"
                         className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#7c3aed] focus:outline-none"
                       />
@@ -484,8 +563,8 @@ export function Navbar({
                       <div className="relative">
                         <input
                           type={showKeySecret ? "text" : "password"}
-                          value={tempKey}
-                          onChange={(e) => setTempKey(e.target.value)}
+                          value={endpointKey}
+                          onChange={(e) => setEndpointKey(e.target.value)}
                           placeholder="sk-... (or leave empty for local models)"
                           className="w-full rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] px-3.5 py-2.5 pr-10 text-xs font-mono text-[#18181b] placeholder-[#a1a1aa] focus:border-[#7c3aed] focus:outline-none"
                         />

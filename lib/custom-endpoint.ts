@@ -126,11 +126,6 @@ export async function compileWithCustomEndpoint({
     chat_template_kwargs: {
       enable_thinking: Boolean(enableThinking),
     },
-    extra_body: {
-      chat_template_kwargs: {
-        enable_thinking: Boolean(enableThinking),
-      },
-    },
   };
 
   try {
