@@ -1,9 +1,10 @@
-import { checkNvidiaRateLimit, recordNvidiaRequest } from "@/lib/nvidia-rate-limiter";
+import { takeApiSlot, keyId } from "@/lib/api-rate-limiter";
 import { extractCompilePayload, ExtractedComponentPayload } from "@/lib/json-extractor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileOutputSchema } from "@/lib/schemas";
 import { CompileResponse } from "@/lib/types";
 import { readSseStream } from "@/lib/sse";
+import { buildCompilePrompt } from "@/lib/prompts";
 
 export interface NvidiaCompileOptions {
   apiKey: string;
@@ -39,60 +40,34 @@ export async function compileWithNvidiaNim({
     cleanModel = cleanModel.replace(/glm-5-3/gi, "glm-5.3");
   }
 
+  const isVisionModel =
+    cleanModel.toLowerCase().includes("vision") ||
+    cleanModel.toLowerCase().includes("neva");
 
-     const isVisionModel =
-     cleanModel.toLowerCase().includes("vision") ||
-     cleanModel.toLowerCase().includes("neva");
-
-   // Text-only models never receive the image. Without the canvas wireframe
-   // description there is nothing to build from, so fail early with a clear message.
-   if (!isVisionModel && !wireframeDescription?.trim()) {
-     return {
-       success: false,
-       error: `${cleanModel} cannot read images. Draw your sketch on the canvas (Key 2 uses the canvas structure), or switch to Key 1 (Gemma reads images).`,
-       status: 400,
-     };
-   }
-
-  // 1. Strict 39 RPM rate limit check BEFORE sending any request to NVIDIA
-  const rateLimitStatus = checkNvidiaRateLimit(cleanKey);
-  if (!rateLimitStatus.allowed) {
+  // Text-only models never receive the image. Without the canvas wireframe
+  // description there is nothing to build from, so fail early with a clear message.
+  if (!isVisionModel && !wireframeDescription?.trim()) {
     return {
       success: false,
-      error: `NVIDIA NIM rate limit reached: 39 requests/minute limit across all models. Next slot available in ${rateLimitStatus.retryAfterSeconds}s. Request held to prevent upstream 429 quota penalty.`,
-      status: 429,
-      retryAfterSeconds: rateLimitStatus.retryAfterSeconds,
+      error: `${cleanModel} cannot read images. Draw your sketch on the canvas (Key 2 uses the canvas structure), or switch to Key 1 (Gemma reads images).`,
+      status: 400,
     };
   }
 
-  // 2. Pre-record the request timestamp in the sliding window.
-  // NVIDIA NIM counts every attempt towards the 39 RPM quota even if it fails or errors.
-  recordNvidiaRequest(cleanKey);
+  // Atomic 39 RPM rate limit: check and record in one step (no TOCTOU race)
+  const slot = takeApiSlot(keyId("nvidia", cleanKey), 39);
+  if (!slot.allowed) {
+    return {
+      success: false,
+      error: `NVIDIA NIM rate limit reached: 39 requests/minute. Next slot in ${slot.retryAfterSeconds}s.`,
+      status: 429,
+      retryAfterSeconds: slot.retryAfterSeconds,
+    };
+  }
 
-  const wireframeDetails = wireframeDescription?.trim()
-    ? `\n\nCANVAS WIREFRAME STRUCTURE & ELEMENTS DETECTED:\n${wireframeDescription.trim()}`
-    : "";
-
-  const promptText = `You are an expert Tailwind CSS frontend architect and UI engineer.
-Create a modern, clean, production-grade, and fully responsive HTML component using Tailwind CSS utility classes accurately reflecting the user's hand-drawn wireframe.${wireframeDetails}
-
-STRICT REQUIREMENTS:
-1. Replicate the EXACT elements, labels, buttons, inputs, cards, and structure detected from the wireframe above. Do NOT generate unrelated or random components.
-2. In the HTML code, you MUST use template variables like {{propName}} for all dynamic text, labels, and customizable styling (e.g. {{title}}, {{buttonText}}, {{color}}).
-3. You MUST provide a rich, non-empty "props" array with at least 3-6 relevant props matching those template variables.
-4. Output ONLY a single parseable JSON object matching this schema:
-{
-  "componentName": "CustomComponent",
-  "html": "<div class=\\"...\\">{{title}} <button class=\\"...\\">{{buttonText}}</button></div>",
-  "props": [
-    { "name": "title", "type": "string", "default": "Title Text", "description": "Header title" },
-    { "name": "buttonText", "type": "string", "default": "Click Me", "description": "Button label" }
-  ]
-}`;
+  const promptText = buildCompilePrompt(wireframeDescription);
 
   try {
-
-
     const messages = isVisionModel
       ? [
           {
@@ -127,8 +102,7 @@ STRICT REQUIREMENTS:
       model: cleanModel,
       messages,
       temperature: 0.1,
-      max_tokens: 8192 ,
-      reasoning_effort: "low", // Thinking disabled across all NVIDIA NIM models
+      max_tokens: 8192,
       stream: true,
     };
 
@@ -159,7 +133,7 @@ STRICT REQUIREMENTS:
       };
     }
 
-     const { content: accumulatedContent, reasoning: accumulatedReasoning } = res.body
+    const { content: accumulatedContent, reasoning: accumulatedReasoning } = res.body
       ? await readSseStream(res.body)
       : { content: "", reasoning: "" };
 

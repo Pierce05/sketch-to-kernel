@@ -48,6 +48,29 @@ describe("CompileRequestSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+  it("accepts custom mode with valid customApiKey", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+      customApiKey: "user-key-12345",
+    });
+    expect(r.success).toBe(true);
+  });
+  it("rejects custom mode without customApiKey", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+    });
+    expect(r.success).toBe(false);
+  });
+  it("rejects custom mode with blank customApiKey", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "custom",
+      customApiKey: "   ",
+    });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe("CompileOutputSchema", () => {

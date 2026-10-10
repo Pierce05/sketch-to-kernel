@@ -6,6 +6,8 @@ import { sanitizeHtml } from "@/lib/sanitizer";
 import { CompileResponse } from "@/lib/types";
 import { compileWithNvidiaNim } from "@/lib/nvidia-nim";
 import { getClientIp, takeIpSlot } from "@/lib/ip-rate-limit";
+import { takeApiSlot, keyId } from "@/lib/api-rate-limiter";
+import { buildCompilePrompt } from "@/lib/prompts";
 
 export const maxDuration = 60;
 
@@ -14,6 +16,8 @@ const MAX_BODY_BYTES = 8_000_000;
 const GEMINI_BUDGET_MS = 55_000;
 // Shared default keys (Key 1 / Key 2) are limited per client IP. Custom keys are the user's own.
 const DEFAULT_KEY_LIMIT_PER_MIN = 12;
+// Gemini API key rate limit (requests per minute).
+const GEMINI_RPM = 29;
 
 class HttpError extends Error {
   constructor(
@@ -179,6 +183,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 3b. Per-key Gemini rate limit: 29 RPM
+    const geminiSlot = takeApiSlot(keyId("gemini", geminiKey), GEMINI_RPM);
+    if (!geminiSlot.allowed) {
+      return errorResponse(
+        429,
+        `Gemini rate limit reached (${GEMINI_RPM} req/min). Try again in ${geminiSlot.retryAfterSeconds}s.`,
+        { "Retry-After": String(geminiSlot.retryAfterSeconds) },
+      );
+    }
+
     // Dynamic Gemma fallback: a 26b primary falls back to 31b, and a 31b primary falls back to 26b.
     const primaryModel = (process.env.GEMMA_MODEL || "gemma-4-26b-a4b-it").trim();
     const fallbackModel =
@@ -194,26 +208,7 @@ export async function POST(req: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey: geminiKey });
 
-    const wireframeContext = wireframeDescription?.trim()
-      ? `\n\nCANVAS WIREFRAME STRUCTURE & ELEMENTS DETECTED:\n${wireframeDescription.trim()}`
-      : "";
-
-    const promptText = `You are an expert Tailwind CSS frontend architect.
-Convert the provided hand-drawn UI wireframe or sketch into a modern, clean, and fully responsive HTML component using Tailwind CSS utility classes.${wireframeContext}
-
-STRICT REQUIREMENTS:
-1. Accurately replicate the layout, labels, buttons, inputs, and components shown in the sketch.
-2. In the HTML, you MUST use template variables like {{propName}} for all dynamic text, labels, and customizable styling (e.g. {{title}}, {{buttonText}}, {{color}}).
-3. Ensure semantic HTML, high visual quality, proper contrast, and sensible hover/focus states.
-4. You MUST include a non-empty, detailed "props" array with at least 3-6 relevant props matching the template variables.
-5. DO NOT wrap the output in markdown code blocks. Output ONLY raw, parseable JSON conforming to:
-{
-  "componentName": "string",
-  "html": "string containing pure HTML with Tailwind classes and {{propName}} variables",
-  "props": [
-    { "name": "string", "type": "string", "default": "string", "description": "string" }
-  ]
-}`;
+    const promptText = buildCompilePrompt(wireframeDescription);
 
     const makeContents = () => [
       {
