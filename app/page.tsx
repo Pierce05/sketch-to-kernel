@@ -906,7 +906,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t-2 border-[#18181b] bg-[#eceae1] py-8 text-xs text-[#52525b]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Sketch2Kernel Logo" className="size-5 object-contain" />
             <span className="font-bold text-[#18181b]">Sketch2Kernel</span>
             <span>•</span>
             <span>Hacktoberfest 2026 Open Source Project</span>
@@ -921,20 +922,20 @@ export default function LandingPage() {
               GitHub Repo
             </a>
             <a
-              href="https://github.com/Pierce05/sketch-to-kernel/issues/42"
+              href="https://github.com/Pierce05/sketch-to-kernel/issues/44"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#2724d1] transition-colors"
             >
-              Issue #42
+              Issue #44
             </a>
             <a
-              href="https://github.com/Pierce05/sketch-to-kernel/pull/41"
+              href="https://github.com/Pierce05/sketch-to-kernel/pull/43"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#2724d1] transition-colors"
             >
-              PR #41
+              PR #43
             </a>
           </div>
         </div>

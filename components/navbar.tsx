@@ -251,8 +251,12 @@ export function Navbar({
             onClick={(e) => handleNavClick(e, "/")}
             className="flex items-center gap-2.5 text-[#18181b] transition-opacity hover:opacity-90"
           >
-            <div className="flex size-9 items-center justify-center rounded-lg border-2 border-[#2724d1] bg-blue-50 text-[#2724d1] shadow-xs">
-              <PenTool className="size-4.5 stroke-[2.5]" />
+            <div className="flex size-9 items-center justify-center rounded-lg border-2 border-[#18181b] bg-white overflow-hidden shadow-xs p-1">
+              <img
+                src="/logo.png"
+                alt="Sketch2Kernel Logo"
+                className="size-full object-contain"
+              />
             </div>
             <div className="flex flex-col">
               <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold font-mono tracking-tight text-[#18181b]">
