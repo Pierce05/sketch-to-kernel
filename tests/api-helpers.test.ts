@@ -123,3 +123,69 @@ describe("normalizeEndpointUrl", () => {
     expect(normalizeEndpointUrl("   ")).toBe("");
   });
 });
+
+describe("Thinking payload kwargs", () => {
+  it("sends chat_template_kwargs without extra_body for custom endpoint", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    const originalFetch = global.fetch;
+    global.fetch = (async (_url: unknown, options: { body?: string }) => {
+      if (options?.body) {
+        capturedBody = JSON.parse(options.body);
+      }
+      return new Response("data: [DONE]\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    try {
+      const { compileWithCustomEndpoint } = await import("../lib/custom-endpoint");
+      await compileWithCustomEndpoint({
+        endpoint: "https://api.openai.com/v1",
+        apiKey: "test-key",
+        modelId: "gpt-4o",
+        imageDataUrl: "data:image/png;base64,AAAA",
+        enableThinking: true,
+      });
+
+      expect(capturedBody).toBeDefined();
+      expect(capturedBody?.chat_template_kwargs).toEqual({ enable_thinking: true });
+      expect(capturedBody?.extra_body).toBeUndefined();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("sends both chat_template_kwargs and extra_body for NVIDIA NIM", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    const originalFetch = global.fetch;
+    global.fetch = (async (_url: unknown, options: { body?: string }) => {
+      if (options?.body) {
+        capturedBody = JSON.parse(options.body);
+      }
+      return new Response("data: [DONE]\n\n", {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    try {
+      const { compileWithNvidiaNim } = await import("../lib/nvidia-nim");
+      await compileWithNvidiaNim({
+        apiKey: "nvapi-test-key",
+        modelId: "meta/llama-3.1-70b-instruct",
+        imageDataUrl: "data:image/png;base64,AAAA",
+        wireframeDescription: "button and input wireframe",
+        enableThinking: false,
+      });
+
+      expect(capturedBody).toBeDefined();
+      expect(capturedBody?.chat_template_kwargs).toEqual({ enable_thinking: false });
+      expect(capturedBody?.extra_body).toEqual({
+        chat_template_kwargs: { enable_thinking: false },
+      });
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
