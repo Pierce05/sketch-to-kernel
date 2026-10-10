@@ -249,27 +249,15 @@ export function Navbar({
           <a
             href="/"
             onClick={(e) => handleNavClick(e, "/")}
-            className="flex items-center gap-2.5 text-[#18181b] transition-opacity hover:opacity-90"
+            className="flex items-center transition-transform hover:scale-102 active:scale-98"
+            title="Sketch2Kernel Home"
+            aria-label="Sketch2Kernel Home"
           >
-            <div className="flex size-9 items-center justify-center rounded-lg border-2 border-[#18181b] bg-white overflow-hidden shadow-xs p-1">
-              <img
-                src="/logo.png"
-                alt="Sketch2Kernel Logo"
-                className="size-full object-contain"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="flex items-center gap-1.5 text-base sm:text-lg font-bold font-mono tracking-tight text-[#18181b]">
-                Sketch<span className="text-[#2724d1]">2Kernel</span>
-                <SketchBadge
-                  stroke="#2724d1"
-                  fill="rgba(39, 36, 209, 0.08)"
-                  className="hidden sm:inline-flex text-[10px] text-[#2724d1] font-bold"
-                >
-                  Gemma 4 &amp; NIM
-                </SketchBadge>
-              </span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="Sketch2Kernel"
+              className="h-10 sm:h-11 w-auto max-w-[190px] sm:max-w-[220px] object-contain"
+            />
           </a>
         </div>
 
