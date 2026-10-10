@@ -12,6 +12,7 @@ import {
   STORAGE_CUSTOM_PROVIDER,
   STORAGE_CUSTOM_MODEL,
   STORAGE_CUSTOM_ENDPOINT,
+  STORAGE_CUSTOM_THINKING,
 } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { PenTool, Eye, AlertCircle, Sparkles, X, ChevronRight, Layers, ShieldAlert } from "lucide-react";
@@ -22,6 +23,7 @@ export default function PlaygroundPage() {
   const [customProvider, setCustomProvider] = useState<CustomProvider>("gemini");
   const [customModelId, setCustomModelId] = useState("z-ai/glm-5.3");
   const [customEndpoint, setCustomEndpoint] = useState("https://api.openai.com/v1/chat/completions");
+  const [customThinking, setCustomThinking] = useState(false);
 
   // Compilation state
   const [isCompiling, setIsCompiling] = useState(false);
@@ -44,6 +46,8 @@ export default function PlaygroundPage() {
       if (savedModel) setCustomModelId(savedModel);
       const savedEndpoint = localStorage.getItem(STORAGE_CUSTOM_ENDPOINT);
       if (savedEndpoint) setCustomEndpoint(savedEndpoint);
+      const savedThinking = localStorage.getItem(STORAGE_CUSTOM_THINKING);
+      if (savedThinking !== null) setCustomThinking(savedThinking === "true");
     }
   }, []);
 
@@ -82,6 +86,13 @@ export default function PlaygroundPage() {
     }
   };
 
+  const handleCustomThinkingChange = (thinking: boolean) => {
+    setCustomThinking(thinking);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM_THINKING, String(thinking));
+    }
+  };
+
   const handleCompile = async (
     imageDataUrl: string,
     selectedPreset?: CanvasPreset,
@@ -94,6 +105,7 @@ export default function PlaygroundPage() {
       image: imageDataUrl,
       apiKeyType: apiKeyMode,
       wireframeDescription,
+      enableThinking: customThinking,
       ...(apiKeyMode === "custom"
         ? {
             customProvider,
@@ -188,6 +200,8 @@ export default function PlaygroundPage() {
         onCustomModelIdChange={handleCustomModelIdChange}
         customEndpoint={customEndpoint}
         onCustomEndpointChange={handleCustomEndpointChange}
+        customThinking={customThinking}
+        onCustomThinkingChange={handleCustomThinkingChange}
       />
 
       {/* Error / Rate Limit Notice Banner */}

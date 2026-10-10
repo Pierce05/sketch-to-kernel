@@ -10,6 +10,7 @@ import {
   STORAGE_CUSTOM_PROVIDER,
   STORAGE_CUSTOM_MODEL,
   STORAGE_CUSTOM_ENDPOINT,
+  STORAGE_CUSTOM_THINKING,
 } from "@/lib/utils";
 import { useInkBlobRouter } from "@/components/ink-blob-transition";
 import {
@@ -30,6 +31,7 @@ import {
   Sparkles,
   ShieldAlert,
   Globe,
+  BrainCircuit,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -43,6 +45,8 @@ interface NavbarProps {
   onCustomModelIdChange?: (model: string) => void;
   customEndpoint?: string;
   onCustomEndpointChange?: (endpoint: string) => void;
+  customThinking?: boolean;
+  onCustomThinkingChange?: (thinking: boolean) => void;
 }
 
 export function Navbar({
@@ -56,6 +60,8 @@ export function Navbar({
   onCustomModelIdChange,
   customEndpoint = "https://api.openai.com/v1/chat/completions",
   onCustomEndpointChange,
+  customThinking = false,
+  onCustomThinkingChange,
 }: NavbarProps) {
   const pathname = usePathname();
   const { navigateWithBlob } = useInkBlobRouter();
@@ -67,6 +73,7 @@ export function Navbar({
   const [tempKey, setTempKey] = useState(customApiKey);
   const [tempModel, setTempModel] = useState(customModelId || "z-ai/glm-5.3");
   const [tempEndpoint, setTempEndpoint] = useState(customEndpoint || "https://api.openai.com/v1/chat/completions");
+  const [tempThinking, setTempThinking] = useState(customThinking);
   const [previousMode, setPreviousMode] = useState<ApiKeyMode>(apiKeyMode);
   const [showKeySecret, setShowKeySecret] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -80,7 +87,8 @@ export function Navbar({
     setActiveTab(customProvider);
     setTempModel(customModelId || "z-ai/glm-5.3");
     setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
-  }, [customApiKey, customProvider, customModelId, customEndpoint]);
+    setTempThinking(customThinking);
+  }, [customApiKey, customProvider, customModelId, customEndpoint, customThinking]);
 
   const handleModeSelect = (mode: ApiKeyMode) => {
     if (mode === "custom") {
@@ -89,6 +97,7 @@ export function Navbar({
       setTempKey(customApiKey);
       setTempModel(customModelId || "z-ai/glm-5.3");
       setTempEndpoint(customEndpoint || "https://api.openai.com/v1/chat/completions");
+      setTempThinking(customThinking);
       setShowKeyModal(true);
     } else {
       onApiKeyModeChange(mode);
@@ -114,6 +123,7 @@ export function Navbar({
       onCustomProviderChange?.(activeTab);
       onCustomModelIdChange?.(trimmedModel);
       onCustomEndpointChange?.(trimmedEndpoint);
+      onCustomThinkingChange?.(tempThinking);
       onApiKeyModeChange("custom");
 
       if (typeof window !== "undefined") {
@@ -121,6 +131,7 @@ export function Navbar({
         localStorage.setItem(STORAGE_CUSTOM_PROVIDER, activeTab);
         localStorage.setItem(STORAGE_CUSTOM_MODEL, trimmedModel);
         localStorage.setItem(STORAGE_CUSTOM_ENDPOINT, trimmedEndpoint);
+        localStorage.setItem(STORAGE_CUSTOM_THINKING, String(tempThinking));
         localStorage.setItem(STORAGE_KEY_MODE, "custom");
       }
 
@@ -384,6 +395,42 @@ export function Navbar({
                       </div>
                     </div>
 
+                    {/* Model Thinking Toggle */}
+                    <div className="flex items-center justify-between rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`flex size-7 items-center justify-center rounded-lg border border-[#18181b] ${
+                            tempThinking ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-500"
+                          }`}
+                        >
+                          <BrainCircuit className="size-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
+                          <div className="text-[10px] text-[#71717a] font-mono">
+                            {tempThinking
+                              ? "Enabled (chat_template_kwargs.enable_thinking: true)"
+                              : "Disabled (chat_template_kwargs.enable_thinking: false)"}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={tempThinking}
+                        onClick={() => setTempThinking(!tempThinking)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
+                          tempThinking ? "bg-emerald-500" : "bg-zinc-200"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block size-4.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
+                            tempThinking ? "translate-x-5" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     {/* Strict 39 RPM Metric notice */}
                     <div className="rounded-xl border border-emerald-300 bg-emerald-50/70 p-2.5 text-xs text-emerald-900 flex items-start gap-2">
                       <ShieldAlert className="size-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -453,6 +500,42 @@ export function Navbar({
                       <p className="mt-1 text-[11px] text-[#71717a] font-mono">
                         Bearer authentication token sent with the request header.
                       </p>
+                    </div>
+
+                    {/* Model Thinking Toggle */}
+                    <div className="flex items-center justify-between rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`flex size-7 items-center justify-center rounded-lg border border-[#18181b] ${
+                            tempThinking ? "bg-purple-100 text-purple-800" : "bg-zinc-100 text-zinc-500"
+                          }`}
+                        >
+                          <BrainCircuit className="size-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
+                          <div className="text-[10px] text-[#71717a] font-mono">
+                            {tempThinking
+                              ? "Enabled (chat_template_kwargs.enable_thinking: true)"
+                              : "Disabled (chat_template_kwargs.enable_thinking: false)"}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={tempThinking}
+                        onClick={() => setTempThinking(!tempThinking)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
+                          tempThinking ? "bg-purple-600" : "bg-zinc-200"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block size-4.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
+                            tempThinking ? "translate-x-5" : "translate-x-0.5"
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
                 )}

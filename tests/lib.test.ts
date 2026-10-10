@@ -100,6 +100,27 @@ describe("CompileRequestSchema", () => {
     });
     expect(r.success).toBe(false);
   });
+  it("defaults enableThinking to false when omitted", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "default_1",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.enableThinking).toBe(false);
+    }
+  });
+  it("accepts enableThinking when explicitly set to true", () => {
+    const r = CompileRequestSchema.safeParse({
+      image: "data:image/png;base64,AAAA",
+      apiKeyType: "default_2",
+      enableThinking: true,
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.enableThinking).toBe(true);
+    }
+  });
 });
 
 describe("CompileOutputSchema", () => {
