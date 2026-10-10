@@ -580,42 +580,6 @@ export function Navbar({
                         Bearer authentication token sent with the request header.
                       </p>
                     </div>
-
-                    {/* Model Thinking Toggle */}
-                    <div className="flex items-center justify-between rounded-xl border-2 border-[#18181b] bg-[#fcfbf9] p-3">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`flex size-7 items-center justify-center rounded-lg border border-[#18181b] ${
-                            tempThinking ? "bg-purple-100 text-purple-800" : "bg-zinc-100 text-zinc-500"
-                          }`}
-                        >
-                          <BrainCircuit className="size-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs font-mono font-bold text-[#18181b]">Model Thinking</div>
-                          <div className="text-[10px] text-[#71717a] font-mono">
-                            {tempThinking
-                              ? "Enabled (chat_template_kwargs.enable_thinking: true)"
-                              : "Disabled (chat_template_kwargs.enable_thinking: false)"}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={tempThinking}
-                        onClick={() => setTempThinking(!tempThinking)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-[#18181b] transition-colors duration-200 ease-in-out focus:outline-none ${
-                          tempThinking ? "bg-purple-600" : "bg-zinc-200"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block size-4.5 transform rounded-full border border-[#18181b] bg-white shadow-xs transition duration-200 ease-in-out ${
-                            tempThinking ? "translate-x-5" : "translate-x-0.5"
-                          }`}
-                        />
-                      </button>
-                    </div>
                   </div>
                 )}
 

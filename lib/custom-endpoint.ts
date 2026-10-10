@@ -11,7 +11,6 @@ export interface CustomEndpointCompileOptions {
   modelId: string;
   imageDataUrl: string;
   wireframeDescription?: string;
-  enableThinking?: boolean;
 }
 
 export interface CustomEndpointCompileResult {
@@ -47,7 +46,6 @@ export async function compileWithCustomEndpoint({
   modelId,
   imageDataUrl,
   wireframeDescription,
-  enableThinking = false,
 }: CustomEndpointCompileOptions): Promise<CustomEndpointCompileResult> {
   const cleanEndpoint = normalizeEndpointUrl(endpoint);
   if (!cleanEndpoint) {
@@ -117,15 +115,12 @@ export async function compileWithCustomEndpoint({
     headers["Authorization"] = `Bearer ${cleanKey}`;
   }
 
-  const payload: Record<string, unknown> = {
+  const payload = {
     model: cleanModel,
     messages,
     temperature: 0.1,
     max_tokens: 8192,
     stream: true,
-    chat_template_kwargs: {
-      enable_thinking: Boolean(enableThinking),
-    },
   };
 
   try {
