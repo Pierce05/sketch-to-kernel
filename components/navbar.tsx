@@ -327,7 +327,7 @@ export function Navbar({
                 activeStroke="#059669"
                 onClick={() => handleModeSelect("default_2")}
                 title="NVIDIA NIM (Model: z-ai/glm-5.3 • 39 RPM rate limited)"
-                className="px-2.5 sm:px-3 py-1 pr-6"
+                className="px-2.5 sm:px-3 py-1 pr-8 sm:pr-9"
               >
                 <span>Key 2</span>
                 <span className="text-[10px] opacity-75 hidden md:inline">(NIM)</span>
