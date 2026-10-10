@@ -100,7 +100,7 @@ export async function compileWithNvidiaNim({
           },
         ];
 
-    const payload: Record<string, unknown> = {
+        const payload: Record<string, unknown> = {
       model: cleanModel,
       messages,
       temperature: 0.1,
@@ -110,6 +110,8 @@ export async function compileWithNvidiaNim({
         enable_thinking: Boolean(enableThinking),
       },
     };
+    // GLM on NIM ignores enable_thinking. reasoning_effort is what actually limits reasoning.
+    if (!enableThinking) payload.reasoning_effort = "low";
 
     const res = await fetch(NVIDIA_NIM_ENDPOINT, {
       method: "POST",

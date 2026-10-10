@@ -184,6 +184,7 @@ describe("Thinking payload kwargs", () => {
       expect(capturedBody?.chat_template_kwargs).toEqual({
         enable_thinking: false,
       });
+      expect(capturedBody?.reasoning_effort).toBe("low");
     } finally {
       global.fetch = originalFetch;
     }
