@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import logoImg from "@/assets/logo.png";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { ApiKeyMode, CustomProvider } from "@/lib/types";
@@ -253,10 +255,11 @@ export function Navbar({
             title="Sketch2Kernel Home"
             aria-label="Sketch2Kernel Home"
           >
-            <img
-              src="/logo.png"
+            <Image
+              src={logoImg}
               alt="Sketch2Kernel"
-              className="h-10 sm:h-11 w-auto max-w-[190px] sm:max-w-[220px] object-contain"
+              priority
+              className="h-10 sm:h-11 w-auto max-w-[200px] sm:max-w-[240px] object-contain"
             />
           </a>
         </div>
