@@ -24,6 +24,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 def run_server():
+    # Windows consoles may default to cp1252, which cannot encode the banner icons.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     local_ip = get_local_ip()
     handler = CustomHandler
     

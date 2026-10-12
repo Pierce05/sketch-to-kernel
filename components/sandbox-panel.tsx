@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { CompileResponse } from "@/lib/types";
 import { PropsTable } from "@/components/props-table";
 import { CodeViewer } from "@/components/code-viewer";
 import { SketchButton, SketchBadge, SketchOptionButton } from "@/components/sketch-ui";
+import { isColorProp, resolveToHex, resolveAccentTokens } from "@/lib/color-utils";
 import confetti from "canvas-confetti";
 import {
   Eye,
@@ -63,6 +64,49 @@ export function SandboxPanel({
     }
   };
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Identify active accent / color prop if defined
+  const activeColorProp = useMemo(() => {
+    if (!compileResult?.props) return null;
+    return compileResult.props.find((p) => isColorProp(p.name, p.type)) ?? null;
+  }, [compileResult]);
+
+  // Current accent color raw value
+  const currentAccentRaw = useMemo(() => {
+    if (activeColorProp) {
+      return propValues[activeColorProp.name] ?? activeColorProp.default;
+    }
+    for (const [key, val] of Object.entries(propValues)) {
+      if (isColorProp(key)) return val;
+    }
+    return "#2724d1";
+  }, [activeColorProp, propValues]);
+
+  // Normalized tokens for live styles and CSS variables
+  const accentTokens = useMemo(() => {
+    return resolveAccentTokens(currentAccentRaw, "#2724d1");
+  }, [currentAccentRaw]);
+
+  // Send live color updates to iframe for instant, lag-free reactive feedback
+  useEffect(() => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          {
+            type: "UPDATE_ACCENT",
+            color: accentTokens.color,
+            hover: accentTokens.hover,
+            glow: accentTokens.glow,
+          },
+          "*"
+        );
+      } catch {
+        // Silently ignore if cross-origin or unloaded
+      }
+    }
+  }, [accentTokens]);
+
   // Dynamically interpolate template props into HTML for live sandbox render
   const interpolatedHtml = useMemo(() => {
     if (!compileResult?.html) return "";
@@ -73,25 +117,68 @@ export function SandboxPanel({
         const currentVal = propValues[prop.name] ?? prop.default;
         if (currentVal === undefined) return;
 
+        const isColor = isColorProp(prop.name, prop.type);
+        const resolvedHex = isColor ? resolveToHex(currentVal, "#2724d1") : currentVal;
+
         // 1. Replace explicit template tokens: {{propName}}, {propName}, $propName
         const tokenRegex = new RegExp(`{{\\s*${prop.name}\\s*}}`, "gi");
         const singleTokenRegex = new RegExp(`(?<![a-zA-Z0-9_-]){\\s*${prop.name}\\s*}(?![a-zA-Z0-9_-])`, "gi");
         const dollarTokenRegex = new RegExp(`\\$${prop.name}\\b`, "gi");
 
-        const hadTokens = tokenRegex.test(html) || singleTokenRegex.test(html) || dollarTokenRegex.test(html);
+        const hadTokens =
+          tokenRegex.test(html) || singleTokenRegex.test(html) || dollarTokenRegex.test(html);
+
         if (hadTokens) {
+          if (isColor) {
+            // E.g. class="bg-[{{accentColor}}]" -> ensure hex or valid CSS in brackets
+            const bracketTokenRegex = new RegExp(`(bg|text|border)-\\[{{\\s*${prop.name}\\s*}}\\]`, "gi");
+            html = html.replace(bracketTokenRegex, `$1-[${resolvedHex}]`);
+
+            // E.g. class="bg-{{accentColor}}" -> if currentVal starts with # or rgb, wrap in brackets
+            if (currentVal.startsWith("#") || currentVal.startsWith("rgb")) {
+              const prefixTokenRegex = new RegExp(`(bg|text|border)-{{\\s*${prop.name}\\s*}}`, "gi");
+              html = html.replace(prefixTokenRegex, `$1-[${currentVal}]`);
+            }
+          }
+
           html = html
             .replace(tokenRegex, currentVal)
             .replace(singleTokenRegex, currentVal)
             .replace(dollarTokenRegex, currentVal);
         } else if (prop.default && currentVal !== prop.default) {
           // 2. If no tokens existed in HTML, but user changed prop from default:
-          // dynamically replace occurrences of prop.default with currentVal!
+          let replaced = false;
           try {
             const escapedDefault = prop.default.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const defaultRegex = new RegExp(escapedDefault, "g");
-            html = html.replace(defaultRegex, currentVal);
+            if (defaultRegex.test(html)) {
+              html = html.replace(defaultRegex, currentVal);
+              replaced = true;
+            }
           } catch {}
+
+          // If it was a color prop and exact default text replacement did not match anything
+          // (frequent when LLM put prop.default: "#4f46e5" but HTML had "bg-indigo-600" or similar):
+          if (!replaced && isColor) {
+            const cleanDefaultName = prop.default.toLowerCase().replace(/^(bg|text|border)-/, "");
+            if (cleanDefaultName) {
+              const twRegex = new RegExp(`(bg|text|border)-${cleanDefaultName}(-[0-9]{3})?`, "gi");
+              if (twRegex.test(html)) {
+                html = html.replace(twRegex, `$1-[${resolvedHex}]`);
+                replaced = true;
+              }
+            }
+
+            if (!replaced) {
+              const buttonBgRegex = /<button([^>]*?)class="([^"]*?)bg-(indigo|blue|purple|violet|emerald|green|red|rose|pink|amber|orange|cyan|teal|sky)-[0-9]{3}([^"]*?)"/gi;
+              if (buttonBgRegex.test(html)) {
+                html = html.replace(
+                  buttonBgRegex,
+                  `<button$1class="$2bg-[${resolvedHex}]$4"`
+                );
+              }
+            }
+          }
         }
       });
     }
@@ -143,6 +230,29 @@ export function SandboxPanel({
       }
     })();
   </script>
+  <style id="live-accent-tokens">
+    :root {
+      --accent-color: ${accentTokens.color};
+      --accent-hover: ${accentTokens.hover};
+      --accent-glow: ${accentTokens.glow};
+    }
+  </style>
+  <script>
+    // Live CSS variable listener for zero-latency postMessage color updates
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'UPDATE_ACCENT') {
+        if (event.data.color) {
+          document.documentElement.style.setProperty('--accent-color', event.data.color);
+        }
+        if (event.data.hover) {
+          document.documentElement.style.setProperty('--accent-hover', event.data.hover);
+        }
+        if (event.data.glow) {
+          document.documentElement.style.setProperty('--accent-glow', event.data.glow);
+        }
+      }
+    });
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     if (typeof tailwind !== 'undefined') {
@@ -150,7 +260,12 @@ export function SandboxPanel({
         theme: {
           extend: {
             colors: {
-              brand: '#2724d1',
+              brand: 'var(--accent-color, #2724d1)',
+              'brand-hover': 'var(--accent-hover, #1f1cb5)',
+              accent: 'var(--accent-color, #2724d1)',
+              'accent-hover': 'var(--accent-hover, #1f1cb5)',
+              primary: 'var(--accent-color, #2724d1)',
+              'primary-hover': 'var(--accent-hover, #1f1cb5)',
             }
           }
         }
@@ -199,8 +314,8 @@ export function SandboxPanel({
       cursor: pointer;
     }
     input:focus, textarea:focus, select:focus {
-      border-color: #2724d1;
-      box-shadow: 0 0 0 3px rgba(39, 36, 209, 0.15);
+      border-color: var(--accent-color, #2724d1);
+      box-shadow: 0 0 0 3px var(--accent-glow, rgba(39, 36, 209, 0.15));
     }
     input::placeholder, textarea::placeholder {
       color: #a1a1aa;
@@ -214,6 +329,7 @@ export function SandboxPanel({
       margin-bottom: 0.375rem;
     }
 
+    /* Primary buttons with responsive accent color token */
     button, input[type="submit"], input[type="button"], .btn {
       display: inline-flex;
       align-items: center;
@@ -226,7 +342,7 @@ export function SandboxPanel({
       padding: 0.625rem 1.25rem;
       border-radius: 0.5rem;
       border: 1px solid transparent;
-      background-color: #2724d1;
+      background-color: var(--accent-color, #2724d1);
       color: #ffffff;
       cursor: pointer;
       box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -234,18 +350,41 @@ export function SandboxPanel({
       text-decoration: none;
     }
     button:hover, input[type="submit"]:hover, input[type="button"]:hover, .btn:hover {
-      background-color: #1f1cb5;
-      box-shadow: 0 4px 6px -1px rgba(39, 36, 209, 0.2);
+      background-color: var(--accent-hover, #1f1cb5);
+      box-shadow: 0 4px 6px -1px var(--accent-glow, rgba(39, 36, 209, 0.2));
       transform: translateY(-1px);
     }
     button:active, input[type="submit"]:active, input[type="button"]:active, .btn:active {
-      background-color: #1a179e;
+      filter: brightness(0.9);
       transform: translateY(0);
     }
     button:disabled, input[type="submit"]:disabled {
       opacity: 0.5;
       cursor: not-allowed;
       transform: none;
+    }
+
+    /* CRITICAL OVERRIDE: Prevent Tailwind Preflight reset (button { background-color: transparent })
+       from turning non-outline/non-ghost buttons transparent!
+       This ensures any button that does not intentionally have a transparent or white/light background
+       always remains solid and reactive to the accent color! */
+    button:not([class*="bg-transparent"]):not([class*="bg-white"]):not([class*="bg-slate-"]):not([class*="bg-gray-"]):not([class*="bg-zinc-"]):not([class*="bg-neutral-"]):not([class*="bg-stone-"]):not([class*="border-2"]):not([class*="text-slate"]):not([class*="text-gray"]):not([class*="text-zinc"]),
+    input[type="submit"],
+    input[type="button"],
+    .btn,
+    .btn-primary {
+      background-color: var(--accent-color, #2724d1) !important;
+      color: #ffffff !important;
+    }
+
+    button:not([class*="bg-transparent"]):not([class*="bg-white"]):not([class*="bg-slate-"]):not([class*="bg-gray-"]):not([class*="bg-zinc-"]):not([class*="bg-neutral-"]):not([class*="bg-stone-"]):not([class*="border-2"]):not([class*="text-slate"]):not([class*="text-gray"]):not([class*="text-zinc"]):hover,
+    input[type="submit"]:hover,
+    input[type="button"]:hover,
+    .btn:hover,
+    .btn-primary:hover {
+      background-color: var(--accent-hover, #1f1cb5) !important;
+      box-shadow: 0 4px 6px -1px var(--accent-glow, rgba(39, 36, 209, 0.25)) !important;
+      transform: translateY(-1px);
     }
 
     form {
@@ -285,7 +424,7 @@ export function SandboxPanel({
       margin-bottom: 0;
     }
     a {
-      color: #2724d1;
+      color: var(--accent-color, #2724d1);
       text-decoration: none;
       font-weight: 500;
     }
@@ -358,7 +497,10 @@ export function SandboxPanel({
     .bg-white { background-color: #ffffff; }
     .bg-slate-50, .bg-gray-50, .bg-zinc-50 { background-color: #fafafa; }
     .bg-slate-100, .bg-gray-100, .bg-zinc-100 { background-color: #f4f4f5; }
-    .bg-brand, .bg-blue-600 { background-color: #2724d1; }
+    .bg-brand, .bg-accent, .bg-primary { background-color: var(--accent-color, #2724d1); }
+    .text-brand, .text-accent, .text-primary { color: var(--accent-color, #2724d1); }
+    .border-brand, .border-accent, .border-primary { border-color: var(--accent-color, #2724d1); }
+    .bg-blue-600 { background-color: #2563eb; }
     .text-white { color: #ffffff; }
     .text-slate-900, .text-gray-900, .text-zinc-900 { color: #09090b; }
     .text-slate-700, .text-gray-700, .text-zinc-700 { color: #3f3f46; }
@@ -385,7 +527,7 @@ export function SandboxPanel({
   ${interpolatedHtml}
 </body>
 </html>`;
-  }, [interpolatedHtml]);
+  }, [interpolatedHtml, accentTokens]);
 
   const handleCopyCode = async () => {
     if (!interpolatedHtml) return;
@@ -517,6 +659,7 @@ export function SandboxPanel({
                 style={{ minHeight: "350px" }}
               >
                 <iframe
+                  ref={iframeRef}
                   sandbox="allow-scripts"
                   srcDoc={iframeSrcDoc}
                   title="Compiled Web Component Preview"

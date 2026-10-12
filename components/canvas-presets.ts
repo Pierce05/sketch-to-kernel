@@ -99,7 +99,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
       html: `<div class="w-full max-w-md rounded-2xl border-2 border-indigo-500/40 bg-gray-950 p-6 shadow-2xl">
   <div class="flex items-center justify-between">
     <div>
-      <span class="font-mono text-xs font-semibold text-indigo-400 uppercase tracking-wider">{{trackBadge}}</span>
+      <span class="font-mono text-xs font-semibold uppercase tracking-wider" style="color: var(--accent-color, {{accentColor}});">{{trackBadge}}</span>
       <h3 class="text-lg font-bold text-white tracking-tight mt-0.5">{{projectTitle}}</h3>
     </div>
     <span class="rounded-lg bg-emerald-950/80 px-2.5 py-1 text-xs font-mono text-emerald-400 border border-emerald-800/40">★ {{starsCount}}</span>
@@ -112,7 +112,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
   </div>
   <div class="mt-5 pt-4 border-t border-gray-800 flex items-center justify-between">
     <span class="text-xs text-gray-500 font-mono">Team: {{teamName}}</span>
-    <button class="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-colors">
+    <button class="inline-flex items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-md transition-all hover:opacity-90 active:scale-95 cursor-pointer" style="background-color: var(--accent-color, {{accentColor}});">
       {{ctaLabel}}
     </button>
   </div>
@@ -123,6 +123,7 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
         { name: "teamName", type: "string", default: "Pierce & Atharv", description: "Team creator names" },
         { name: "description", type: "string", default: "Turn hand-drawn napkin sketches into live web components in seconds using Gemma 4.", description: "Project summary" },
         { name: "starsCount", type: "string", default: "142", description: "GitHub star count" },
+        { name: "accentColor", type: "string", default: "#4f46e5", description: "Primary button & badge accent color" },
         { name: "ctaLabel", type: "string", default: "Explore Project →", description: "Action button text" },
       ],
     },
@@ -188,16 +189,22 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
     <span class="rounded bg-purple-950/60 px-2 py-0.5 text-[10px] text-purple-300 border border-purple-800/40">Gemma 4 31B</span>
   </div>
   <div class="mt-4 space-y-2 text-gray-300">
-    <div class="text-indigo-400">$ {{commandInput}}</div>
+    <div class="font-bold" style="color: var(--accent-color, {{accentColor}});">$ {{commandInput}}</div>
     <div class="text-emerald-400">✓ Canvas raster exported (1280x720 PNG)</div>
     <div class="text-gray-400">→ Sending payload to POST /api/compile...</div>
     <div class="text-purple-300">★ Inference complete in {{latency}} (Zod validated)</div>
     <div class="text-gray-500">// Output: {{statusMessage}}</div>
   </div>
+  <div class="mt-4 pt-3 border-t border-gray-800/60 flex items-center justify-end">
+    <button class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95 cursor-pointer" style="background-color: var(--accent-color, {{accentColor}});">
+      Run Again ⚡
+    </button>
+  </div>
 </div>`,
       props: [
         { name: "terminalTitle", type: "string", default: "gemma-compiler-v4", description: "Terminal window title" },
         { name: "commandInput", type: "string", default: "sketch compile --model gemma-4-31b", description: "Executed CLI command" },
+        { name: "accentColor", type: "string", default: "#a855f7", description: "Terminal accent highlight color" },
         { name: "latency", type: "string", default: "420ms", description: "API response latency" },
         { name: "statusMessage", type: "string", default: "Ready for live preview inspection", description: "Status footer text" },
       ],
@@ -252,11 +259,11 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
       componentName: "ProjectVotingCard",
       html: `<div class="w-full max-w-sm rounded-2xl border border-pink-500/30 bg-gray-950 p-5 shadow-xl">
   <div class="flex items-center justify-between">
-    <span class="text-xs font-mono uppercase tracking-wider text-pink-400 font-semibold">{{headerLabel}}</span>
+    <span class="text-xs font-mono uppercase tracking-wider font-semibold" style="color: var(--accent-color, {{accentColor}});">{{headerLabel}}</span>
     <span class="rounded-full bg-pink-950/60 px-2 py-0.5 text-[10px] font-mono text-pink-300 border border-pink-800/40">Live Poll</span>
   </div>
   <div class="mt-4 flex items-center gap-4">
-    <button class="flex flex-col items-center justify-center rounded-xl border border-pink-500/40 bg-pink-950/30 px-4 py-2 text-pink-300 hover:bg-pink-900/50 transition-colors">
+    <button class="flex flex-col items-center justify-center rounded-xl px-4 py-2 text-white shadow-md transition-all hover:opacity-90 active:scale-95 cursor-pointer" style="background-color: var(--accent-color, {{accentColor}});">
       <span class="text-lg font-bold">▲</span>
       <span class="text-sm font-extrabold">{{upvotesCount}}</span>
     </button>
@@ -267,12 +274,13 @@ export const CANVAS_PRESETS: CanvasPreset[] = [
   </div>
   <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
     <span>Feedback: {{feedbackScore}} / 10</span>
-    <span class="text-pink-400 font-medium">Cast Your Vote →</span>
+    <span class="font-medium" style="color: var(--accent-color, {{accentColor}});">Cast Your Vote →</span>
   </div>
 </div>`,
       props: [
         { name: "headerLabel", type: "string", default: "Hackathon Judge Poll", description: "Header category title" },
         { name: "upvotesCount", type: "string", default: "284", description: "Total upvotes count" },
+        { name: "accentColor", type: "string", default: "#ec4899", description: "Upvote button & accent color" },
         { name: "questionText", type: "string", default: "Would you ship this to production?", description: "Main poll question" },
         { name: "authorCredit", type: "string", default: "Built for Hacktoberfest 2026", description: "Subhead credits" },
         { name: "feedbackScore", type: "string", default: "9.8", description: "Average rating score" },
