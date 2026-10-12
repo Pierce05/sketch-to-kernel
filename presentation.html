@@ -1,0 +1,2471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sketch2Kernel (S2U) — Napkin to UI with Google Gemma 4</title>
+  
+  <!-- Fonts: Hand-drawn sketchbook fonts for headings + clean typography for body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@600;700&family=Covered+By+Your+Grace&family=JetBrains+Mono:wght@400;500;700&family=Kalam:wght@400;700&family=Patrick+Hand&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    @font-face {
+      font-family: "Drawably Pen";
+      src: url("public/fonts/DrawablyPen.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    :root {
+      --paper: #f8f7f2;
+      --paper-card: #ffffff;
+      --paper-darker: #eae8dc;
+      --ink-primary: #18181b;
+      --ink-secondary: #475569;
+      --ink-muted: #64748b;
+      --ink-blue: #1d4ed8;
+      --ink-red: #b91c1c;
+      --ink-green: #15803d;
+      --wash-yellow: #fef08a;
+      --wash-blue: #dbeafe;
+      --wash-pink: #fce7f3;
+      --border-dark: #1e293b;
+      --font-heading: "Drawably Pen", "Kalam", "Caveat", "Architects Daughter", cursive;
+      --font-title-clean: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-code: "JetBrains Mono", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0f172a;
+      color: var(--ink-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* 16:9 Presentation Stage */
+    #presentation-stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 1600px;
+      max-height: 900px;
+      aspect-ratio: 16 / 9;
+      background-color: var(--paper);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Notebook Grid & Margins */
+    .sketchbook-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: 
+        linear-gradient(to right, rgba(29, 78, 216, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(29, 78, 216, 0.04) 1px, transparent 1px);
+      background-size: 26px 26px;
+      z-index: 1;
+    }
+
+    .notebook-margin {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 64px;
+      width: 2px;
+      background-color: rgba(185, 28, 28, 0.25);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: rgba(0,0,0,0.06);
+      z-index: 12;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background: var(--ink-blue);
+      width: 9%;
+      transition: width 0.3s ease;
+    }
+
+    /* Slides Viewport */
+    .slides-viewport {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 40px 60px 40px 92px;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      opacity: 0;
+      transform: scale(0.985);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* ONLY Slide Titles use the hand-drawn sketchbook font */
+    .slide-title, h1.slide-title, .title-sketch {
+      font-family: var(--font-heading);
+      letter-spacing: -0.01em;
+      color: var(--ink-primary);
+    }
+
+    /* All Card titles, step headers, and section subtitles use crisp, clean modern font */
+    h1, h2, h3, h4, .card-title, .pipeline-step-title {
+      font-family: var(--font-title-clean);
+      color: var(--ink-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .slide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .slide-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: 1.5px solid var(--border-dark);
+      background-color: #ffffff;
+      box-shadow: 2px 2px 0 var(--border-dark);
+    }
+
+    .tag-track {
+      background-color: var(--wash-yellow);
+      border-color: #b45309;
+      color: #78350f;
+    }
+
+    .tag-gemma {
+      background-color: var(--wash-blue);
+      border-color: #1d4ed8;
+      color: #1e40af;
+    }
+
+    .speaker-pill {
+      font-family: var(--font-title-clean);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--wash-pink);
+      padding: 4px 14px;
+      border-radius: 6px;
+      border: 1.5px solid #be185d;
+      color: #831843;
+      transform: rotate(-1.5deg);
+      display: inline-block;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+    }
+
+    .slide-title-wrap {
+      margin-bottom: 18px;
+    }
+
+    .slide-title {
+      font-family: var(--font-heading);
+      font-size: 3.1rem;
+      line-height: 1.1;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-subtitle {
+      font-family: var(--font-body);
+      font-size: 1.15rem;
+      color: var(--ink-secondary);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .handwritten-annotation {
+      font-family: var(--font-heading);
+      font-size: 1.6rem;
+      color: var(--ink-blue);
+      display: inline-block;
+      transform: rotate(-1.5deg);
+    }
+
+    .highlight-yellow {
+      background: linear-gradient(104deg, rgba(254, 240, 138, 0) 1%, rgba(254, 240, 138, 0.95) 2%, rgba(254, 240, 138, 0.85) 96%, rgba(254, 240, 138, 0) 99%);
+      padding: 0 6px;
+      border-radius: 3px;
+    }
+
+    .highlight-blue {
+      background: linear-gradient(104deg, rgba(219, 234, 254, 0) 1%, rgba(219, 234, 254, 0.95) 2%, rgba(219, 234, 254, 0.85) 96%, rgba(219, 234, 254, 0) 99%);
+      padding: 0 6px;
+      border-radius: 3px;
+    }
+
+    /* Grids & Cards */
+    .content-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .content-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sketch-card {
+      background: var(--paper-card);
+      border: 2px solid var(--border-dark);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 4px 4px 0 var(--border-dark);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sketch-card.elevated {
+      background: #ffffff;
+      border: 2px solid var(--ink-blue);
+      box-shadow: 4px 4px 0 var(--ink-blue);
+    }
+
+    .paper-tape {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-1deg);
+      background: rgba(254, 240, 138, 0.85);
+      width: 100px;
+      height: 22px;
+      border-left: 2px dashed rgba(0,0,0,0.15);
+      border-right: 2px dashed rgba(0,0,0,0.15);
+      z-index: 5;
+    }
+
+    /* Interactive GIF Media Frame with Hover Cue */
+    .media-frame {
+      border: 2px solid var(--border-dark);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.15);
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: zoom-in;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      max-height: 440px;
+    }
+
+    .media-frame:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--border-dark);
+    }
+
+    .media-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .media-zoom-badge {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Lists & Pills */
+    .sketch-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .sketch-list li {
+      position: relative;
+      padding-left: 30px;
+      font-size: 1.1rem;
+      line-height: 1.45;
+      color: var(--ink-primary);
+      font-weight: 500;
+    }
+
+    .sketch-list li::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--ink-blue);
+      border: 1.5px solid var(--border-dark);
+    }
+
+    .sketch-list li strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: var(--font-code);
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+    }
+
+    .badge-gemma {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+    }
+
+    .badge-green {
+      background: #f0fdf4;
+      color: #15803d;
+      border-color: #86efac;
+    }
+
+    /* Clean SVG Icon Utilities */
+    .icon-svg {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .icon-svg svg {
+      width: 100%;
+      height: 100%;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Huge Neural Pipeline Flow (Takes 80% of slide area) */
+    .pipeline-container-large {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      flex: 1;
+      height: 82%;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .pipeline-row {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr 48px 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pipeline-step-card {
+      background: #ffffff;
+      border: 2px solid var(--border-dark);
+      border-radius: 12px;
+      padding: 18px 22px;
+      box-shadow: 4px 4px 0 var(--border-dark);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 140px;
+      justify-content: center;
+    }
+
+    .pipeline-step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pipeline-step-title {
+      font-family: var(--font-title-clean);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pipeline-step-desc {
+      font-size: 0.98rem;
+      color: var(--ink-secondary);
+      line-height: 1.45;
+    }
+
+    .pipeline-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-blue);
+    }
+
+    /* Code Snippet Box */
+    .code-preview {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border: 2px solid var(--border-dark);
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+      overflow-x: auto;
+    }
+
+    .code-preview .json-key { color: #38bdf8; }
+    .code-preview .json-str { color: #a7f3d0; }
+    .code-preview .json-num { color: #fde047; }
+    .code-preview .json-comment { color: #94a3b8; font-style: italic; }
+
+    /* Footer & Controls (Stealth / Projector Mode) */
+    #deck-controls {
+      height: 52px;
+      background: var(--paper-darker);
+      border-top: 2px solid var(--border-dark);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      z-index: 10;
+    }
+
+    .controls-left, .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-ctrl {
+      background: #ffffff;
+      border: 1.5px solid var(--border-dark);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 2px 2px 0 var(--border-dark);
+      transition: all 0.15s;
+      text-decoration: none;
+      color: var(--ink-primary);
+    }
+
+    .btn-ctrl:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 var(--border-dark);
+      background: var(--wash-yellow);
+    }
+
+    .slide-counter {
+      font-family: var(--font-code);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    /* LIGHTBOX POPUP MODAL FOR GIFS */
+    #lightbox-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    #lightbox-modal.active {
+      display: flex;
+    }
+
+    .lightbox-container {
+      position: relative;
+      width: min(92vw, 1280px);
+      max-height: 92vh;
+      background: #ffffff;
+      border: 3px solid var(--border-dark);
+      border-radius: 12px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .lightbox-media-wrapper {
+      position: relative;
+      cursor: default;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: min(72vh, 720px);
+      background: #020617;
+      overflow: hidden;
+    }
+
+    .lightbox-media-wrapper img, .lightbox-media-wrapper canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .lightbox-header {
+      width: 100%;
+      padding: 10px 20px;
+      background: var(--paper-darker);
+      border-bottom: 2px solid var(--border-dark);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lightbox-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .lightbox-status-pill.paused {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+
+    .btn-close-lightbox {
+      background: #ffffff;
+      border: 1.5px solid var(--border-dark);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* FULL VIDEO PLAYER CONTROLS (Appears only on Alt + G) */
+    #gif-player-bar {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 2px solid var(--border-dark);
+      padding: 10px 18px;
+      display: none;
+      align-items: center;
+      gap: 14px;
+      backdrop-filter: blur(10px);
+      color: #f8fafc;
+      z-index: 10;
+    }
+
+    #gif-player-bar.active {
+      display: flex;
+      animation: playerBarSlideUp 0.18s ease-out;
+    }
+
+    @keyframes playerBarSlideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .btn-player {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-player:hover {
+      background: #334155;
+      border-color: #38bdf8;
+    }
+
+    .btn-player.active {
+      background: #38bdf8;
+      color: #0f172a;
+      border-color: #38bdf8;
+    }
+
+    .player-progress-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .player-seek-slider {
+      flex: 1;
+      height: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #334155;
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .player-seek-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+      transition: transform 0.1s ease;
+    }
+
+    .player-seek-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .player-time-display {
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #94a3b8;
+      min-width: 90px;
+      text-align: right;
+    }
+
+    /* Callout & Metrics */
+    .callout-box {
+      background: var(--wash-yellow);
+      border: 2px dashed #ca8a04;
+      border-radius: 10px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .callout-text {
+      font-size: 0.98rem;
+      line-height: 1.45;
+      font-weight: 600;
+      color: #713f12;
+    }
+
+    .metric-number {
+      font-family: var(--font-title-clean);
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: var(--ink-blue);
+      line-height: 1;
+    }
+
+    .metric-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--ink-secondary);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ========================================================
+       SECRET CUSTOMIZATION DRAWER (Alt + H)
+       ======================================================== */
+    #secret-drawer {
+      position: fixed;
+      top: 0;
+      right: -390px;
+      width: 370px;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(14px);
+      border-left: 2px solid #334155;
+      box-shadow: -10px 0 35px rgba(0, 0, 0, 0.65);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #f8fafc;
+      padding: 24px 20px;
+      overflow-y: auto;
+    }
+
+    #secret-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .drawer-title {
+      font-family: var(--font-title-clean);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drawer-badge {
+      font-family: var(--font-code);
+      font-size: 0.72rem;
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .drawer-section {
+      margin-bottom: 18px;
+    }
+
+    .drawer-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .drawer-select {
+      width: 100%;
+      background: #1e293b;
+      border: 1.5px solid #334155;
+      color: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .drawer-select:focus {
+      border-color: #38bdf8;
+    }
+
+    .drawer-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e293b;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .drawer-shortcuts-list {
+      background: #0b1120;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: var(--font-code);
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #94a3b8;
+    }
+
+    .drawer-shortcuts-list kbd {
+      background: #1e293b;
+      border: 1px solid #475569;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fde047;
+      font-weight: 700;
+    }
+
+    /* Paper texture modes */
+    .sketchbook-bg.ruled {
+      background-image: linear-gradient(to bottom, rgba(29, 78, 216, 0.08) 1px, transparent 1px);
+      background-size: 100% 28px;
+    }
+    .sketchbook-bg.dots {
+      background-image: radial-gradient(rgba(29, 78, 216, 0.16) 1.2px, transparent 1.2px);
+      background-size: 20px 20px;
+    }
+    .sketchbook-bg.plain {
+      background-image: none;
+    }
+
+    /* High contrast projector mode */
+    body.high-contrast {
+      --ink-primary: #000000;
+      --ink-secondary: #0f172a;
+      --border-dark: #000000;
+    }
+    body.high-contrast .sketch-card {
+      border-width: 3px;
+      box-shadow: 6px 6px 0 #000000;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="presentation-stage">
+    <!-- Paper Textures & Progress -->
+    <div class="sketchbook-bg"></div>
+    <div class="notebook-margin"></div>
+    <div class="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+
+    <!-- VIEWPORT FOR SLIDES -->
+    <div class="slides-viewport">
+
+      <!-- ==========================================
+           SLIDE 1: TITLE & HOOK
+           ========================================== -->
+      <div class="slide active" id="slide-1" data-speaker="Atharv" data-notes="Good afternoon judges and fellow builders! Every great product begins the exact same way: scribbled on a coffee napkin, margin of a notebook, or a classroom whiteboard. But turning that rough doodle into working web components takes hours of tedious manual styling. We are Atharv and Purvanshi, and we created Sketch2Kernel—product vision S2U: Napkin to UI. We harness Google Gemma 4's multimodal vision to compile hand-drawn wireframes directly into live, interactive Web Components in seconds.">
+        <div class="slide-header">
+          <span class="slide-tag tag-track">Hacktoberfest 2026 × MUJ Finals</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-gemma">Track: Best Use of Gemma 4</span>
+            <span class="speaker-pill">Atharv</span>
+          </div>
+        </div>
+
+        <div class="content-grid-2">
+          <div>
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+              <img src="assets/logo.png" alt="Sketch2Kernel Logo" style="height: 74px; width: auto; object-fit: contain;">
+              <div>
+                <span class="handwritten-annotation">Project S2U (Sketch-to-UI)</span>
+                <h1 class="slide-title" style="font-size: 3.6rem; line-height: 1;">Sketch2Kernel</h1>
+              </div>
+            </div>
+
+            <p style="font-size: 1.35rem; font-weight: 600; color: var(--ink-secondary); line-height: 1.45; margin-bottom: 22px;">
+              <span class="highlight-yellow">The AI Digital Sketchbook:</span> Compiling hand-drawn napkin wireframes into semantic, sandboxed Web Components with Google Gemma 4.
+            </p>
+
+            <div class="sketch-card" style="padding: 16px 22px; background: #fff;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); font-weight: 700;">Builders / Team</div>
+                  <div style="font-family: var(--font-title-clean); font-size: 1.25rem; font-weight: 700; margin-top: 2px;">Purvanshi Khandelwal & Atharv R Gachchi</div>
+                </div>
+                <div style="text-align: right;">
+                  <span class="badge-pill badge-gemma">Gemma 4 Multimodal</span>
+                  <div style="font-size: 0.82rem; font-family: var(--font-code); color: var(--ink-secondary); margin-top:4px;">gemma-4-31b-it</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="callout-box" style="margin-top: 20px;">
+              <div class="icon-svg" style="color: #b45309;">
+                <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              </div>
+              <div class="callout-text">
+                <strong>Core Philosophy:</strong> "Napkin to UI". Don't describe layouts in paragraphs of text. Draw tactile wireframes and compile them directly.
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:14px; align-items:center;">
+            <div class="media-frame" style="width: 100%; height: 380px;" onclick="openLightbox('assets/main_page.png')">
+              <div class="paper-tape"></div>
+              <img src="assets/main_page.png" alt="Sketch2Kernel Landing Experience">
+              <span class="media-zoom-badge">🔍 Click to Expand</span>
+            </div>
+            <span class="handwritten-annotation" style="font-family: 'Caveat'; font-size: 1.45rem;">
+              Rough.js vector sketchpad meets Gemma 4 multimodal vision
+            </span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+          <span style="font-size: 0.85rem; color: var(--ink-muted);">Public Repo: github.com/Pierce05/sketch-to-kernel (MIT License)</span>
+          <span style="font-size: 0.85rem; font-family: var(--font-code); font-weight: 600;">90 Commits • 65 Merged PRs • 53 Automated Tests</span>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 2: THE PROBLEM (FILLED 70% TEXT)
+           ========================================== -->
+      <div class="slide" id="slide-2" data-speaker="Atharv" data-notes="Why does S2U exist? When developers brainstorm, they don't think in 12-column CSS flexboxes or Tailwind utility strings. They draw a box, write 'Pricing', and add a toggle button on a napkin. But modern AI code generation has a massive flaw: it relies almost entirely on text prompts. Trying to describe a 2D spatial layout using text is excruciating and error-prone. And traditional UI design tools force developers into rigid component trees before the concept has even matured. There is an enormous friction chasm between human drawing and code.">
+        <div class="slide-header">
+          <span class="slide-tag">Problem Analysis</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-track">The Ideation Gap</span>
+            <span class="speaker-pill">Atharv</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">The Napkin-to-Code Bottleneck</h2>
+          <p class="slide-subtitle">
+            Why brilliant whiteboard and napkin ideas get stuck before reaching the code editor.
+          </p>
+        </div>
+
+        <div class="content-grid-3" style="gap: 20px;">
+          <!-- Card 1 -->
+          <div class="sketch-card" style="padding: 26px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color: #b91c1c; border-color: #fca5a5; background: #fef2f2;">Bottleneck 01</span>
+                <div class="icon-svg" style="color: #b91c1c;">
+                  <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 12px;">The Translation Tax</h3>
+              <p style="font-size: 1.05rem; color: var(--ink-secondary); line-height: 1.55; margin-bottom: 12px;">
+                Developers spend over <strong>70% of early prototype time</strong> manually converting hand-drawn whiteboards into manual HTML/CSS boilerplate and Figma frames.
+              </p>
+              <p style="font-size: 0.98rem; color: var(--ink-muted); line-height: 1.5;">
+                By the time the initial CSS grid is wired up, the spontaneous creative momentum is completely lost.
+              </p>
+            </div>
+            <div style="margin-top: 16px; padding: 10px 12px; background: #fee2e2; border-radius: 6px; font-size: 0.88rem; font-weight: 600; color: #991b1b;">
+              Result: Sluggish iteration & prototype fatigue
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="sketch-card elevated" style="padding: 26px;">
+            <div class="paper-tape"></div>
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color: #1d4ed8; border-color: #93c5fd; background: #eff6ff;">Bottleneck 02</span>
+                <div class="icon-svg" style="color: #1d4ed8;">
+                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 12px;">The Text-Prompt Trap</h3>
+              <p style="font-size: 1.05rem; color: var(--ink-secondary); line-height: 1.55; margin-bottom: 12px;">
+                Existing AI tools demand <strong>paragraphs of text descriptions</strong>. But human layout thinking is fundamentally spatial: describing 2D spatial layouts with words alone causes hallucinations and misaligned layouts.
+              </p>
+              <p style="font-size: 0.98rem; color: var(--ink-muted); line-height: 1.5;">
+                Explaining nested cards, buttons, and responsive breakpoints in English is painful and error-prone.
+              </p>
+            </div>
+            <div style="margin-top: 16px; padding: 10px 12px; background: #dbeafe; border-radius: 6px; font-size: 0.88rem; font-weight: 600; color: #1e40af;">
+              Solution: Spatial visual reasoning, not text tokens
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="sketch-card" style="padding: 26px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color: #b45309; border-color: #fde68a; background: #fefce8;">Bottleneck 03</span>
+                <div class="icon-svg" style="color: #b45309;">
+                  <svg viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 12px;">Static Dead-End Output</h3>
+              <p style="font-size: 1.05rem; color: var(--ink-secondary); line-height: 1.55; margin-bottom: 12px;">
+                Generic "screenshot-to-code" toys output <strong>frozen, dead HTML blocks</strong>. Changing a button label or title requires another expensive AI re-generation.
+              </p>
+              <p style="font-size: 0.98rem; color: var(--ink-muted); line-height: 1.5;">
+                There is no live sandbox, no variable slot bindings, and no mobile/desktop responsive verification.
+              </p>
+            </div>
+            <div style="margin-top: 16px; padding: 10px 12px; background: #fef3c7; border-radius: 6px; font-size: 0.88rem; font-weight: 600; color: #92400e;">
+              Need: Live sandboxed component with dynamic props
+            </div>
+          </div>
+        </div>
+
+        <div class="callout-box" style="background: #ffffff; border: 2px solid var(--border-dark); margin-top: 14px;">
+          <div class="icon-svg" style="color: #1d4ed8;">
+            <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="callout-text" style="color: var(--ink-primary);">
+            <strong>Our Approach:</strong> What if your digital drawing board could directly feed an open multimodal model that speaks native frontend semantics?
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 3: THE S2U PARADIGM
+           ========================================== -->
+      <div class="slide" id="slide-3" data-speaker="Atharv" data-notes="Meet the S2U paradigm: Sketch2UI. Instead of presenting another generic, cold SaaS dashboard with dropdowns, we built an authentic digital sketchbook. We integrated Rough.js vector physics for freehand drawing with ballpoint ink, scalable stamps for buttons and inputs, napkin presets, and photograph ingestion. When you sketch, it feels tactile like pen on paper. But under the surface, every stroke is tracked, rasterized, and prepared for neural compilation.">
+        <div class="slide-header">
+          <span class="slide-tag">The Solution</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-gemma">S2U: Sketch-to-UI</span>
+            <span class="speaker-pill">Atharv</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">The S2U Experience: Sketching IS Coding</h2>
+          <p class="slide-subtitle">
+            An authentic digital sketchbook engineered for natural ideation and instant compilation.
+          </p>
+        </div>
+
+        <div class="content-grid-2">
+          <div style="display:flex; flex-direction:column; gap:18px;">
+            <ul class="sketch-list">
+              <li>
+                <strong>Tactile Vector Sketchpad:</strong> Rough.js pen physics with ballpoint blue, carbon black, and crimson inks that physically re-sketch on hover.
+              </li>
+              <li>
+                <strong>Pre-Made UI Component Stamps:</strong> Stamp buttons, input fields, badges, cards, tables, and navbars with 8-point resize handles and in-place renaming.
+              </li>
+              <li>
+                <strong>Precision Eradicator Mode:</strong> Line-segment collision detection deletes only the single touched ink stroke without wiping overlapping lines.
+              </li>
+              <li>
+                <strong>Paper Photo Upload:</strong> Sketched on a real paper napkin at lunch? Snap a phone photo and upload it directly onto the board for compilation.
+              </li>
+              <li>
+                <strong>Napkin Wireframe Presets:</strong> 1-click loading for Hero Sections, Auth Cards, Pricing Tables, and Data Grids.
+              </li>
+            </ul>
+
+            <div style="display:flex; gap:12px; margin-top:8px;">
+              <div class="sketch-card" style="flex:1; padding:14px; text-align:center;">
+                <div class="metric-number">Tactile</div>
+                <div class="metric-label">Pen Physics</div>
+              </div>
+              <div class="sketch-card" style="flex:1; padding:14px; text-align:center;">
+                <div class="metric-number">8-Point</div>
+                <div class="metric-label">Stamp Resizing</div>
+              </div>
+              <div class="sketch-card" style="flex:1; padding:14px; text-align:center;">
+                <div class="metric-number">1-Click</div>
+                <div class="metric-label">Napkin Presets</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div class="media-frame" style="width: 100%; height: 380px;" onclick="openLightbox('assets/canvas.gif')">
+              <img src="assets/canvas.gif" alt="Interactive Sketchboard Canvas in Action">
+              <span class="media-zoom-badge">🔍 Click to Expand GIF</span>
+            </div>
+            <span class="handwritten-annotation" style="font-family: caveat;">
+              Freehand drawing + editable UI component stamps
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 4: WHY GEMMA 4? (FILLED 70% + OPEN SOURCE ECOSYSTEM)
+           ========================================== -->
+      <div class="slide" id="slide-4" data-speaker="Atharv" data-notes="Now let's talk about our choice of foundation model. We deliberately focused on Track 1: Best Use of Gemma 4. Why Gemma 4? Unlike pure text LLMs, Gemma 4 is an open-weights multimodal powerhouse. In S2K, we utilize `gemma-4-31b-it` through the Gemini API. It possesses exceptional spatial visual grounding—meaning it understands that a hand-drawn box with a line through the top is a modal header, and an encircled X is a close button. And to guarantee 100% hackathon reliability, we built automatic fallback to `gemma-4-26b-a4b-it` if quota spikes occur.">
+        <div class="slide-header">
+          <span class="slide-tag tag-gemma">Foundation Model</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-track">Track 1: Best Use of Gemma 4</span>
+            <span class="speaker-pill">Atharv</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">Why Google Gemma 4?</h2>
+          <p class="slide-subtitle">
+            Open-weights multimodal vision, robust ecosystem integrations, and resilient architecture.
+          </p>
+        </div>
+
+        <div class="content-grid-3" style="gap: 20px;">
+          <!-- Card 1 -->
+          <div class="sketch-card" style="padding: 24px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill badge-gemma">Visual Reasoning</span>
+                <div class="icon-svg" style="color: #1d4ed8;">
+                  <svg viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 10px;">Spatial Visual Grounding</h3>
+              <p style="font-size: 1.02rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                Gemma 4 natively understands <strong>2D spatial hierarchy</strong>. It differentiates between outer modal frames, nested form inputs, buttons, and navigation bars from rough freehand doodles.
+              </p>
+              <p style="font-size: 0.95rem; color: var(--ink-muted); line-height: 1.45;">
+                It interprets visual grouping, margins, and alignments without needing explicit CSS coordinate instructions.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill" style="background:#eff6ff; color:#1e40af; border-color:#93c5fd;">Native @google/genai SDK</span>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="sketch-card elevated" style="padding: 24px;">
+            <div class="paper-tape"></div>
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill badge-green">Zero Downtime</span>
+                <div class="icon-svg" style="color: #15803d;">
+                  <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 10px;">Dynamic Model Fallback</h3>
+              <p style="font-size: 1.02rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                Primary engine: <strong>gemma-4-31b-it</strong> for maximum semantic depth and nuanced component structure.
+              </p>
+              <p style="font-size: 0.95rem; color: var(--ink-muted); line-height: 1.45;">
+                Automatic failover: <strong>gemma-4-26b-a4b-it</strong> smoothly steps in if rate limits or quota spikes occur, ensuring non-stop uptime during live judging.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill" style="background:#f0fdf4; color:#166534; border-color:#86efac;">Automated Failover Router</span>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="sketch-card" style="padding: 24px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">Model Flexibility</span>
+                <div class="icon-svg" style="color: #7c3aed;">
+                  <svg viewBox="0 0 24 24"><path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zM9 12h6M12 9v6"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.8rem; margin-bottom: 10px;">Open-Source Integration</h3>
+              <p style="font-size: 1.02rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                Built on open-weights foundation with universal provider flexibility: seamlessly connects to NVIDIA NIM open models, local Ollama/vLLM endpoints, or cloud providers.
+              </p>
+              <p style="font-size: 0.95rem; color: var(--ink-muted); line-height: 1.45;">
+                Ships with an official <strong>Agent Skill</strong> compliant with the Agent Skill Open Standard for autonomous CLI execution.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill" style="background:#faf5ff; color:#6b21a8; border-color:#d8b4fe;">Open-Weight Sovereignty</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout-box" style="margin-top: 14px;">
+          <div class="icon-svg" style="color: #b45309;">
+            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="callout-text">
+            <strong>The Multimodal Win:</strong> Gemma 4 processes both raw canvas pixels and coordinate metadata, returning clean, self-contained semantic HTML without requiring proprietary black-box APIs.
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 5: NEURAL COMPILATION PIPELINE (TAKES 80% OF PAGE)
+           ========================================== -->
+      <div class="slide" id="slide-5" data-speaker="Purvanshi" data-notes="Thank you Atharv! Now let's examine the engineering pipeline that connects the canvas to Gemma 4. I'm Purvanshi, and I'll walk you through our architecture. When you hit compile, we don't just send a screenshot and pray. We execute a dual-signal serialization: the canvas generates a high-resolution base64 PNG raster, while simultaneously serializing an exact JSON spatial hierarchy with coordinate bounds. This passes through our 29 RPM sliding-window rate limiter, enters Gemma 4, gets processed by our resilient multi-format extractor, is sanitized against XSS, and renders into an isolated iframe sandbox.">
+        <div class="slide-header">
+          <span class="slide-tag">Engineering Architecture</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-gemma">End-to-End Pipeline</span>
+            <span class="speaker-pill">Purvanshi</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap" style="margin-bottom: 10px;">
+          <h2 class="slide-title">The Neural Compilation Pipeline</h2>
+          <p class="slide-subtitle">
+            How raw doodles and coordinate geometry become secure, responsive Web Components.
+          </p>
+        </div>
+
+        <!-- 80% HEIGHT EXPANDED PIPELINE -->
+        <div class="pipeline-container-large">
+          <!-- Top Row: Ingestion -> Queuing -> Multimodal Model -->
+          <div class="pipeline-row">
+            <div class="pipeline-step-card">
+              <div class="pipeline-step-header">
+                <span class="badge-pill badge-gemma">Input Stage</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:var(--ink-blue);">01</span>
+              </div>
+              <div class="pipeline-step-title">
+                <span>Dual Serialization</span>
+              </div>
+              <p class="pipeline-step-desc">
+                The canvas simultaneously exports a Base64 visual image and a JSON spatial coordinate hierarchy.
+              </p>
+            </div>
+
+            <div class="pipeline-arrow">
+              <div class="icon-svg" style="width: 32px; height: 32px;">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </div>
+            </div>
+
+            <div class="pipeline-step-card">
+              <div class="pipeline-step-header">
+                <span class="badge-pill" style="background:#fefce8; color:#a16207; border-color:#fde047;">Traffic Protection</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:#a16207;">02</span>
+              </div>
+              <div class="pipeline-step-title">
+                <span>Sliding Rate Limiter</span>
+              </div>
+              <p class="pipeline-step-desc">
+                In-memory 29 RPM queue in <code>lib/gemini-rate-limiter.ts</code> proactively delays requests to prevent 429 lockouts.
+              </p>
+            </div>
+
+            <div class="pipeline-arrow">
+              <div class="icon-svg" style="width: 32px; height: 32px;">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </div>
+            </div>
+
+            <div class="pipeline-step-card elevated" style="background: #f0f7ff;">
+              <div class="pipeline-step-header">
+                <span class="badge-pill badge-gemma">Core AI Engine</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:#1d4ed8;">03</span>
+              </div>
+              <div class="pipeline-step-title" style="color: #1d4ed8;">
+                <span>Gemma 4 Multimodal</span>
+              </div>
+              <p class="pipeline-step-desc">
+                <code>gemma-4-31b-it</code> performs spatial reasoning, turning shapes & text into semantic HTML5 markup.
+              </p>
+            </div>
+          </div>
+
+          <!-- Connecting Divider Arrow -->
+          <div style="display: flex; justify-content: flex-end; padding-right: 140px;">
+            <div class="icon-svg" style="width: 28px; height: 28px; color: var(--ink-blue);">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Parsing -> Sanitization -> Live Sandbox -->
+          <div class="pipeline-row">
+            <div class="pipeline-step-card" style="border-color: #15803d; background: #f0fdf4;">
+              <div class="pipeline-step-header">
+                <span class="badge-pill badge-green">Live Component</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:#15803d;">06</span>
+              </div>
+              <div class="pipeline-step-title" style="color: #15803d;">
+                <span>Live Sandbox & Props</span>
+              </div>
+              <p class="pipeline-step-desc">
+                Component boots inside an isolated iframe. Interactive props table updates preview in &lt;10ms without AI calls!
+              </p>
+            </div>
+
+            <div class="pipeline-arrow">
+              <div class="icon-svg" style="width: 32px; height: 32px;">
+                <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </div>
+            </div>
+
+            <div class="pipeline-step-card">
+              <div class="pipeline-step-header">
+                <span class="badge-pill" style="background:#fee2e2; color:#991b1b; border-color:#fca5a5;">Security Barrier</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:#991b1b;">05</span>
+              </div>
+              <div class="pipeline-step-title">
+                <span>DOMPurify Sanitizer</span>
+              </div>
+              <p class="pipeline-step-desc">
+                Strips inline scripts, eval statements, and malicious event handlers before code enters the DOM.
+              </p>
+            </div>
+
+            <div class="pipeline-arrow">
+              <div class="icon-svg" style="width: 32px; height: 32px;">
+                <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              </div>
+            </div>
+
+            <div class="pipeline-step-card">
+              <div class="pipeline-step-header">
+                <span class="badge-pill" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1;">Syntax Repair</span>
+                <span style="font-family: var(--font-code); font-weight:700; color:#475569;">04</span>
+              </div>
+              <div class="pipeline-step-title">
+                <span>Resilient Extractor</span>
+              </div>
+              <p class="pipeline-step-desc">
+                <code>lib/json-extractor.ts</code> self-heals unescaped quotes, markdown blocks, and git diff snippets.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 6: DUAL-SIGNAL SPATIAL PERCEPTION
+           ========================================== -->
+      <div class="slide" id="slide-6" data-speaker="Purvanshi" data-notes="Here is one of our biggest technical innovations: Dual-Signal Spatial Perception. If you feed an AI model only a raw image, it might hallucinate text labels or miss exact alignment. If you feed it only JSON coordinates, it loses the visual nuance of human handwriting, arrows, and circles. In Sketch2Kernel, we feed Gemma 4 BOTH: Signal 1 is the high-res base64 drawing; Signal 2 is a structured JSON manifest detailing exact coordinates, stamp labels, and layout hierarchy. Gemma synthesizes both signals to output pixel-perfect, accessible, semantic HTML5.">
+        <div class="slide-header">
+          <span class="slide-tag tag-gemma">Multimodal Innovation</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag">Dual-Signal Engine</span>
+            <span class="speaker-pill">Purvanshi</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">Dual-Signal Spatial Perception</h2>
+          <p class="slide-subtitle">
+            Eliminating AI layout hallucinations by pairing raw pixels with coordinate metadata.
+          </p>
+        </div>
+
+        <div class="content-grid-2">
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <!-- Signal A Card -->
+            <div class="sketch-card" style="padding: 18px 22px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <h4 style="font-size: 1.5rem; font-weight:700;">Signal A: The Visual Eye (Base64 Raster)</h4>
+                <span class="badge-pill badge-gemma">Visual Geometry</span>
+              </div>
+              <p style="font-size: 0.98rem; color: var(--ink-secondary); line-height: 1.45;">
+                Captures hand-drawn handwriting, rough arrows, circular badges, and layout relationships that words cannot express.
+              </p>
+            </div>
+
+            <!-- Signal B Card with Clean Formatted JSON -->
+            <div class="sketch-card elevated" style="padding: 18px 22px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h4 style="font-size: 1.5rem; font-weight:700;">Signal B: The Blueprint (Spatial JSON)</h4>
+                <span class="badge-pill" style="background:#fee2e2; color:#991b1b; border-color:#fca5a5;">Exact Bounds</span>
+              </div>
+              <div class="code-preview" style="font-size: 0.82rem; padding: 12px;">
+{
+  <span class="json-key">"canvas"</span>: { <span class="json-key">"width"</span>: <span class="json-num">1200</span>, <span class="json-key">"height"</span>: <span class="json-num">800</span> },
+  <span class="json-key">"hierarchy"</span>: [
+    {
+      <span class="json-key">"type"</span>: <span class="json-str">"card_container"</span>,
+      <span class="json-key">"bounds"</span>: { <span class="json-key">"x"</span>: <span class="json-num">120</span>, <span class="json-key">"y"</span>: <span class="json-num">80</span>, <span class="json-key">"w"</span>: <span class="json-num">380</span>, <span class="json-key">"h"</span>: <span class="json-num">460</span> },
+      <span class="json-key">"children"</span>: [
+        { <span class="json-key">"type"</span>: <span class="json-str">"text_heading"</span>, <span class="json-key">"label"</span>: <span class="json-str">"Sign In"</span> },
+        { <span class="json-key">"type"</span>: <span class="json-str">"input_field"</span>, <span class="json-key">"placeholder"</span>: <span class="json-str">"Email"</span> },
+        { <span class="json-key">"type"</span>: <span class="json-str">"button_stamp"</span>, <span class="json-key">"label"</span>: <span class="json-str">"Continue"</span> }
+      ]
+    }
+  ]
+}
+              </div>
+            </div>
+
+            <span class="handwritten-annotation">
+              Visual Eye + Coordinate Blueprint = Zero Layout Hallucinations!
+            </span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div class="media-frame" style="width: 100%; height: 380px;" onclick="openLightbox('assets/compile.gif')">
+              <img src="assets/compile.gif" alt="Compilation of Napkin Wireframe into Code">
+              <span class="media-zoom-badge">🔍 Click to Expand GIF</span>
+            </div>
+            <span class="handwritten-annotation" style="font-family: caveat; font-size: 1.35rem;">
+              Watch Gemma 4 compile the napkin in real time
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 7: LIVE SANDBOX & 2-WAY PROPS
+           ========================================== -->
+      <div class="slide" id="slide-7" data-speaker="Purvanshi" data-notes="Compiling code is only half the battle—making it interactive in milliseconds is the real win. Auto-discovers template tokens, provides sub-10ms two-way binding with zero AI tokens, and responsive multi-viewport testing.">
+        <div class="slide-header">
+          <span class="slide-tag">Interactive Preview</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-track">Live Sandbox</span>
+            <span class="speaker-pill">Purvanshi</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">Live Sandbox & Reactive Props</h2>
+          <p class="slide-subtitle">
+            Zero-latency component customization without re-calling the AI model.
+          </p>
+        </div>
+
+        <div class="content-grid-2">
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <ul class="sketch-list">
+              <li>
+                <strong>Automated Prop Discovery:</strong> Automatically identifies customizable variables (e.g., <code>title</code>, <code>buttonText</code>, <code>variant</code>) in generated HTML.
+              </li>
+              <li>
+                <strong>Sub-10ms Live Binding:</strong> Edit values in the props table ➔ live iframe updates in real time with zero network latency and zero token cost!
+              </li>
+              <li>
+                <strong>Multi-Device Viewport Switcher:</strong> Instant 1-click preview across <strong>Desktop (100%)</strong>, <strong>Tablet</strong>, and <strong>Mobile (375px)</strong> viewports.
+              </li>
+              <li>
+                <strong>One-Click Code Export:</strong> Clean, copyable semantic HTML5 markup ready to paste directly into a production repository.
+              </li>
+            </ul>
+
+            <div class="callout-box" style="background:#eff6ff; border-color:#3b82f6;">
+              <div class="icon-svg" style="color: #1d4ed8;">
+                <svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div class="callout-text" style="color:#1e40af;">
+                <strong>Why This Matters:</strong> It transforms Sketch2Kernel from a static mock generator into a living UI testbench.
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div class="media-frame" style="width: 100%; height: 380px;" onclick="openLightbox('assets/sandbox.gif')">
+              <img src="assets/sandbox.gif" alt="Live Sandboxed Web Components and Real-time Props">
+              <span class="media-zoom-badge">🔍 Click to Expand GIF</span>
+            </div>
+            <span class="handwritten-annotation" style="font-family:caveat">
+              Responsive testing on mobile, tablet & desktop
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 8: PRODUCTION RESILIENCE & SECURITY
+           ========================================== -->
+      <div class="slide" id="slide-8" data-speaker="Purvanshi" data-notes="Security and reliability are non-negotiable for open-source software. When running AI-generated code in a browser, malicious prompt injection or accidental scripts are a genuine risk. That's why we built defense-in-depth: every piece of generated markup passes through DOMPurify and sanitize-html before hitting the DOM, stripping all script tags, object embeds, and inline event handlers. The preview runs in an iframe locked down with strict sandbox attributes. Furthermore, to protect against 429 rate limit crashes during high-traffic judging, we built a rolling 29 RPM sliding-window queue.">
+        <div class="slide-header">
+          <span class="slide-tag">Security & Reliability</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-track">Defense-in-Depth</span>
+            <span class="speaker-pill">Purvanshi</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">Production Resilience & Security</h2>
+          <p class="slide-subtitle">
+            Bulletproof rate limiting, self-healing parsers, and strict iframe sandbox isolation.
+          </p>
+        </div>
+
+        <div class="content-grid-3" style="gap: 20px;">
+          <div class="sketch-card" style="padding: 24px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color:#15803d; background:#f0fdf4; border-color:#86efac;">Quota Armor</span>
+                <div class="icon-svg" style="color: #15803d;">
+                  <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.7rem; margin-bottom: 10px;">29 RPM Rate Limiting</h3>
+              <p style="font-size: 1rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                Rolling <strong>sliding-window queue</strong> in <code>lib/gemini-rate-limiter.ts</code>. Automatically delays requests approaching quota limits, preventing ugly <code>429 Too Many Requests</code> lockouts.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill badge-green">Zero 429 Failures</span>
+            </div>
+          </div>
+
+          <div class="sketch-card elevated" style="padding: 24px;">
+            <div class="paper-tape"></div>
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill badge-gemma">Self-Healing</span>
+                <div class="icon-svg" style="color: #1d4ed8;">
+                  <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.7rem; margin-bottom: 10px;">Resilient Extractor</h3>
+              <p style="font-size: 1rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                <code>lib/json-extractor.ts</code> handles varied model output: self-repairs broken JSON quotes, markdown code fences, raw outer HTML, and git diffs without throwing fatal exceptions.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill badge-gemma">Multi-Format Parser</span>
+            </div>
+          </div>
+
+          <div class="sketch-card" style="padding: 24px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="badge-pill" style="color:#b91c1c; background:#fef2f2; border-color:#fca5a5;">XSS Protection</span>
+                <div class="icon-svg" style="color: #b91c1c;">
+                  <svg viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </div>
+              </div>
+              <h3 style="font-size: 1.7rem; margin-bottom: 10px;">DOMPurify & Isolation</h3>
+              <p style="font-size: 1rem; color: var(--ink-secondary); line-height: 1.5; margin-bottom: 12px;">
+                Passes all markup through <strong>DOMPurify</strong>, stripping <code>&lt;script&gt;</code>, <code>onerror</code>, and <code>javascript:</code> URIs. Rendered in an isolated iframe with restricted sandbox permissions.
+              </p>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="badge-pill" style="color:#b91c1c; background:#fef2f2; border-color:#fca5a5;">Zero Origin Leakage</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout-box" style="margin-top: 16px;">
+          <div class="icon-svg" style="color: #b45309;">
+            <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="callout-text">
+            <strong>Hackathon Durability:</strong> While other projects crash when API limits get hit during live judging, Sketch2Kernel stays rock-solid due to client-side queuing and automated fallback.
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 9: OPEN SOURCE RIGOR (HOW WE BUILT IT)
+           ========================================== -->
+      <div class="slide" id="slide-9" data-speaker="Purvanshi" data-notes="The Hacktoberfest announcement made one thing crystal clear: judges care about HOW you build, not just what you demo. We took this open-source ethos to heart. Look at our repository stats: 90 commits, 65 pull requests, zero direct pushes to main. Every feature was tracked as an issue, worked on in a dedicated branch, and underwent cross-peer code review between Atharv and myself before merging. We set up GitHub Actions CI with strict TypeScript validation, ESLint, and 53 automated unit tests across our API handlers, rate limiters, and sanitizers. We built in public with true engineering discipline.">
+        <div class="slide-header">
+          <span class="slide-tag tag-track">Open-Source Culture</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag">Hacktoberfest Hygiene</span>
+            <span class="speaker-pill">Purvanshi</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">"How We Built It" — Open-Source Rigor</h2>
+          <p class="slide-subtitle">
+            True to the Hacktoberfest spirit: building in public on GitHub with disciplined team hygiene.
+          </p>
+        </div>
+
+        <div class="content-grid-2">
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+              <div class="sketch-card" style="text-align:center; padding:16px 10px;">
+                <div class="metric-number">90</div>
+                <div class="metric-label">Commits</div>
+              </div>
+              <div class="sketch-card" style="text-align:center; padding:16px 10px;">
+                <div class="metric-number" style="color:#b91c1c;">65</div>
+                <div class="metric-label">Closed PRs</div>
+              </div>
+              <div class="sketch-card" style="text-align:center; padding:16px 10px;">
+                <div class="metric-number" style="color:#15803d;">53</div>
+                <div class="metric-label">Unit Tests</div>
+              </div>
+            </div>
+
+            <ul class="sketch-list" style="margin-top: 8px;">
+              <li>
+                <strong>Zero Direct Pushes to <code>main</code>:</strong> 100% feature-branch workflow (<code>feat/</code>, <code>fix/</code>, <code>docs/</code>).
+              </li>
+              <li>
+                <strong>Cross-Peer Code Reviews:</strong> Every single PR was reviewed, discussed, and approved between Atharv and Purvanshi.
+              </li>
+              <li>
+                <strong>Automated CI/CD Pipeline:</strong> GitHub Actions workflow running on every commit, verifying strict TypeScript, ESLint, and Vitest test suites.
+              </li>
+              <li>
+                <strong>Agent Skill Standard:</strong> Packaged as an autonomous skill in <code>skills/sketch-compiler/SKILL.md</code>.
+              </li>
+            </ul>
+          </div>
+
+          <div class="sketch-card" style="display:flex; flex-direction:column; justify-content:space-between; background:#fff;">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-family:var(--font-title-clean); font-weight:700; font-size:1.15rem;">Automated CI/CD Pipeline</span>
+                <span class="badge-pill badge-green">Passing 100%</span>
+              </div>
+              <div class="code-preview" style="font-size: 0.85rem;">
+✓ tests/api-helpers.test.ts (18 tests) <br>
+✓ tests/lib.test.ts (21 tests) <br>
+✓ tests/sanitizer.test.ts (14 tests) <br>
+<br>
+Test Files  3 passed (3) <br>
+     Tests  53 passed (53) <br>
+  Duration  1.42s
+              </div>
+            </div>
+
+            <div style="padding: 12px; background: var(--wash-yellow); border-radius: 8px; border: 1.5px dashed #ca8a04; margin-top: 14px;">
+              <span style="font-size: 0.88rem; font-weight: 700; color: #854d0e;">
+                GitHub Checklist: MIT License • Public Repo • Semantic Commits • Closes # Issues
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 10: LIVE STAGE DEMONSTRATION
+           ========================================== -->
+      <div class="slide" id="slide-10" data-speaker="Atharv" data-notes="Now let's see it live on stage! Opening our production app at sketch2k.vercel.app for live napkin drawing, Gemma 4 compilation, and sub-10ms dynamic prop updates.">
+        <div class="slide-header">
+          <span class="slide-tag tag-track">Showtime</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-gemma">Live Web Execution</span>
+            <span class="speaker-pill">Atharv</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap" style="text-align: center;">
+          <h2 class="slide-title" style="justify-content: center; font-size: 3.4rem;">
+            Live Stage Demonstration
+          </h2>
+          <p class="slide-subtitle" style="font-size: 1.3rem;">
+            Watch a napkin sketch compile into a live, interactive component in seconds.
+          </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 24px 0;">
+          <div class="sketch-card" style="text-align: center; padding: 20px;">
+            <span class="badge-pill badge-gemma" style="margin-bottom:8px;">Step 1</span>
+            <h4 style="font-size: 1.25rem; font-weight:700;">Sketch</h4>
+            <p style="font-size: 0.9rem; color:var(--ink-secondary); margin-top:4px;">Draw on canvas or load a Napkin Preset.</p>
+          </div>
+          <div class="sketch-card" style="text-align: center; padding: 20px;">
+            <span class="badge-pill badge-gemma" style="margin-bottom:8px;">Step 2</span>
+            <h4 style="font-size: 1.25rem; font-weight:700;">Compile</h4>
+            <p style="font-size: 0.9rem; color:var(--ink-secondary); margin-top:4px;">Gemma 4 Multimodal processes pixels & bounds.</p>
+          </div>
+          <div class="sketch-card" style="text-align: center; padding: 20px;">
+            <span class="badge-pill badge-gemma" style="margin-bottom:8px;">Step 3</span>
+            <h4 style="font-size: 1.25rem; font-weight:700;">Preview</h4>
+            <p style="font-size: 0.9rem; color:var(--ink-secondary); margin-top:4px;">Live sandboxed view across Mobile & Desktop.</p>
+          </div>
+          <div class="sketch-card" style="text-align: center; padding: 20px;">
+            <span class="badge-pill badge-green" style="margin-bottom:8px;">Step 4</span>
+            <h4 style="font-size: 1.25rem; font-weight:700;">React</h4>
+            <p style="font-size: 0.9rem; color:var(--ink-secondary); margin-top:4px;">Edit props table live in &lt;10ms!</p>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 14px;">
+          <a href="https://sketch2k.vercel.app" target="_blank" class="btn-ctrl" style="font-size: 1.35rem; padding: 14px 34px; background: var(--wash-yellow); border-width: 2px;">
+            <div class="icon-svg" style="width: 22px; height: 22px;">
+              <svg viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </div>
+            Launch Live App: sketch2k.vercel.app
+          </a>
+          <div style="margin-top: 12px;">
+            <span class="handwritten-annotation" style="font-size: 1.5rem;">
+              (Opens official production deployment on Vercel)
+            </span>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           SLIDE 11: ROADMAP & CONCLUSION
+           ========================================== -->
+      <div class="slide" id="slide-11" data-speaker="Atharv & Purvanshi" data-notes="To wrap up, where are we taking S2U next? Our roadmap includes a VS Code and Cursor extension to compile whiteboard photos directly inside developer IDEs, multi-framework export to React JSX, Vue, and Flutter, and bringing quantized Gemma models directly into the browser using WebGPU. Sketch2Kernel isn't just an experiment; it's the future of tactile software design. Thank you judges and Hacktoberfest organizers! Scan our QR code to view our public repo, and we'd love to take your questions.">
+        <div class="slide-header">
+          <span class="slide-tag tag-track">The Future</span>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="slide-tag tag-gemma">Roadmap & Vision</span>
+            <span class="speaker-pill">Both Presenters</span>
+          </div>
+        </div>
+
+        <div class="slide-title-wrap">
+          <h2 class="slide-title">The Roadmap Ahead</h2>
+          <p class="slide-subtitle">
+            Expanding from a browser sketchbook into a ubiquitous developer workflow.
+          </p>
+        </div>
+
+        <div class="content-grid-2">
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="sketch-card">
+              <h4 style="font-size:1.25rem; font-weight:700; color:var(--ink-blue);">
+                Phase 1: Present (Hacktoberfest 2026)
+              </h4>
+              <p style="font-size:0.95rem; color:var(--ink-secondary); margin-top:4px;">
+                Rough.js drawing suite, Gemma 4 multimodal compilation, isolated sandbox, 2-way props binding, Agent Skill standard.
+              </p>
+            </div>
+
+            <div class="sketch-card">
+              <h4 style="font-size:1.25rem; font-weight:700;">
+                Phase 2: IDE Integrations
+              </h4>
+              <p style="font-size:0.95rem; color:var(--ink-secondary); margin-top:4px;">
+                VS Code & Cursor extensions allowing developers to snap a whiteboard photo and generate code directly into their project repo.
+              </p>
+            </div>
+
+            <div class="sketch-card">
+              <h4 style="font-size:1.25rem; font-weight:700;">
+                Phase 3: Multi-Framework & WebGPU
+              </h4>
+              <p style="font-size:0.95rem; color:var(--ink-secondary); margin-top:4px;">
+                Direct compilation targets for React JSX, Tailwind CSS, and Flutter, plus on-device client inference via WebGPU.
+              </p>
+            </div>
+          </div>
+
+          <div class="sketch-card elevated" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 32px;">
+            <img src="assets/logo.png" alt="Sketch2Kernel Logo" style="height: 64px; margin-bottom: 12px;">
+            <h3 class="title-sketch" style="font-size: 2.8rem; font-weight:700; margin-bottom:4px;">Thank You!</h3>
+            <p style="font-size: 1.05rem; color:var(--ink-secondary); margin-bottom: 18px;">
+              Atharv R Gachchi & Purvanshi Khandelwal
+            </p>
+
+            <div style="background: #ffffff; padding: 12px 20px; border: 2px solid var(--border-dark); border-radius: 8px; margin-bottom: 14px; box-shadow: 3px 3px 0 var(--border-dark);">
+              <div style="font-family:var(--font-code); font-size: 0.95rem; font-weight:700; color:#18181b;">
+                github.com/Pierce05/sketch-to-kernel
+              </div>
+            </div>
+
+            <span class="handwritten-annotation" style="font-size: 1.7rem; color: var(--ink-red);">
+              Questions? We're ready!
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- /slides-viewport -->
+
+    <!-- BOTTOM DECK HUD CONTROLS (Stealth on projector: Notes hidden from screen by default) -->
+    <div id="deck-controls">
+      <div class="controls-left">
+        <button class="btn-ctrl" onclick="prevSlide()" title="Previous Slide (Left Arrow)">◀ Prev</button>
+        <button class="btn-ctrl" onclick="nextSlide()" title="Next Slide (Right Arrow or Space)">Next ▶</button>
+        <span class="slide-counter" id="slide-num">01 / 11</span>
+      </div>
+
+      <div class="controls-center" onclick="toggleSecretDrawer()" title="Click or press Alt+H for Secret Settings" style="cursor: pointer; user-select: none;">
+        <span style="font-family: 'Caveat', cursive; font-size: 1.65rem; color: var(--ink-secondary); font-weight: 700; letter-spacing: 0.02em;">
+          MUJ · Hacktober 2026
+        </span>
+      </div>
+
+      <div class="controls-right">
+        <!-- Presenter Console Link (Opens companion window for laptop/phone) -->
+        <a href="presenter.html" target="_blank" class="btn-ctrl" title="Open Presenter Console (Laptop screen notes)">
+          <div class="icon-svg" style="width:16px; height:16px;">
+            <svg viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+          Presenter Console
+        </a>
+        <button class="btn-ctrl" onclick="toggleFullscreen()" title="Fullscreen Presentation (F key)">
+          ⛶ Fullscreen (F)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX MODAL FOR EXPANDING & PAUSING GIFS -->
+  <div id="lightbox-modal" onclick="onLightboxBackdropClick(event)">
+    <div class="lightbox-container" onclick="event.stopPropagation()">
+      <div class="lightbox-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="slide-tag" style="padding:2px 10px; font-size:0.75rem;">Interactive View</span>
+          <span class="lightbox-status-pill" id="lightbox-status">▶ Playing</span>
+        </div>
+        <button class="btn-close-lightbox" onclick="closeLightbox()">✕ Close (Esc)</button>
+      </div>
+
+      <div class="lightbox-media-wrapper">
+        <img id="lightbox-img" src="" alt="Expanded View">
+        <canvas id="lightbox-canvas" style="display:none;"></canvas>
+      </div>
+
+      <!-- FULL VIDEO PLAYER CONTROLS (Always visible in popup) -->
+      <div id="gif-player-bar">
+        <button class="btn-player" id="btn-play-pause" onclick="togglePlayPause()">
+          <span id="play-pause-icon">⏸ Pause</span>
+        </button>
+        <button class="btn-player" onclick="restartGif()">↺ Restart</button>
+        
+        <div class="player-progress-container">
+          <input type="range" class="player-seek-slider" id="player-seek" min="0" max="100" value="0" oninput="onScrubInput(this.value)" onchange="onScrubChange(this.value)">
+          <span class="player-time-display" id="player-time">00:00 / 00:08</span>
+        </div>
+
+        <div style="display:flex; gap:6px;">
+          <button class="btn-player" id="btn-speed-05" onclick="setSpeed(0.5)">0.5x</button>
+          <button class="btn-player active" id="btn-speed-1" onclick="setSpeed(1.0)">1.0x</button>
+          <button class="btn-player" id="btn-speed-15" onclick="setSpeed(1.5)">1.5x</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECRET CUSTOMIZATION DRAWER (Triggered via Alt + H or clicking MUJ logo) -->
+  <div id="secret-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <div class="icon-svg" style="width: 20px; height: 20px; color: #38bdf8;">
+          <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </div>
+        <span>Secret Settings</span>
+        <span class="drawer-badge">Alt + H</span>
+      </div>
+      <button class="btn-ctrl" onclick="toggleSecretDrawer()" style="padding: 4px 10px; font-size: 0.78rem; background:#334155; color:#fff; border-color:#475569;">✕ Close</button>
+    </div>
+
+    <!-- 1. Heading Font Selector -->
+    <div class="drawer-section">
+      <label class="drawer-label">Slide Heading Font</label>
+      <select id="drawer-font-picker" onchange="changeHeadingFont(this.value)" class="drawer-select">
+        <option value="'Drawably Pen', cursive">Drawably Pen (Local)</option>
+        <option value="'Kalam', cursive">Kalam (Smooth Ink)</option>
+        <option value="'Caveat', cursive">Caveat (Fluid Marker)</option>
+        <option value="'Patrick Hand', cursive">Patrick Hand (Whiteboard)</option>
+        <option value="'Architects Daughter', cursive">Architects Daughter (Draftsman)</option>
+        <option value="'Covered By Your Grace', cursive">Covered By Your Grace (Handwritten)</option>
+      </select>
+    </div>
+
+    <!-- 2. Paper Style Switcher -->
+    <div class="drawer-section">
+      <label class="drawer-label">Notebook Background Paper</label>
+      <select id="drawer-paper-picker" onchange="changePaperTexture(this.value)" class="drawer-select">
+        <option value="grid">Graph Grid (Default 26px)</option>
+        <option value="ruled">Ruled Lined Notebook</option>
+        <option value="dots">Drafting Dot Matrix</option>
+        <option value="plain">Clean Solid Paper</option>
+      </select>
+    </div>
+
+    <!-- 3. Highlighter Tint Wash -->
+    <div class="drawer-section">
+      <label class="drawer-label">Highlighter Accent Tint</label>
+      <select id="drawer-wash-picker" onchange="changeHighlighterColor(this.value)" class="drawer-select">
+        <option value="#fef08a">Sunny Yellow (Default)</option>
+        <option value="#bfdbfe">Sky Blue</option>
+        <option value="#bbf7d0">Mint Green</option>
+        <option value="#fbcfe8">Pastel Pink</option>
+      </select>
+    </div>
+
+    <!-- 4. Projector High-Contrast Mode -->
+    <div class="drawer-section">
+      <label class="drawer-label">Auditorium Projector Tuning</label>
+      <div class="drawer-toggle-row" onclick="toggleHighContrast()">
+        <span>High-Contrast Mode</span>
+        <input type="checkbox" id="contrast-toggle" style="cursor:pointer;" onchange="toggleHighContrast(this.checked)">
+      </div>
+      <p style="font-size:0.75rem; color:#94a3b8; margin-top:6px;">
+        Darkens borders & text contrast if auditorium projector is dim or washed out.
+      </p>
+    </div>
+
+    <!-- 5. Keyboard Shortcuts Reference -->
+    <div class="drawer-section">
+      <label class="drawer-label">Presenter Hotkeys</label>
+      <div class="drawer-shortcuts-list">
+        <div><kbd>Alt + H</kbd> Toggle Secret Drawer</div>
+        <div><kbd>Alt + G</kbd> Toggle Video Scrubber in Lightbox</div>
+        <div><kbd>F</kbd> Fullscreen Presentation</div>
+        <div><kbd>P</kbd> Pop out Presenter Console</div>
+        <div><kbd>→</kbd> / <kbd>Space</kbd> Next Slide</div>
+        <div><kbd>←</kbd> Previous Slide</div>
+        <div><kbd>Esc</kbd> Close Drawer / Lightbox</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const secretDrawer = document.getElementById('secret-drawer');
+
+    function toggleSecretDrawer() {
+      secretDrawer.classList.toggle('open');
+    }
+
+    function changeHeadingFont(fontVal) {
+      document.documentElement.style.setProperty('--font-heading', fontVal);
+      localStorage.setItem('s2k_heading_font', fontVal);
+    }
+
+    function changePaperTexture(textureVal) {
+      const bg = document.querySelector('.sketchbook-bg');
+      if (bg) {
+        bg.className = 'sketchbook-bg';
+        if (textureVal !== 'grid') {
+          bg.classList.add(textureVal);
+        }
+      }
+      localStorage.setItem('s2k_paper_texture', textureVal);
+    }
+
+    function changeHighlighterColor(colorVal) {
+      const highlights = document.querySelectorAll('.highlight-yellow');
+      highlights.forEach(h => {
+        h.style.background = `linear-gradient(104deg, transparent 1%, ${colorVal} 2%, ${colorVal} 96%, transparent 99%)`;
+      });
+      localStorage.setItem('s2k_highlighter_color', colorVal);
+    }
+
+    function toggleHighContrast(forcedVal) {
+      const checkbox = document.getElementById('contrast-toggle');
+      const isChecked = typeof forcedVal === 'boolean' ? forcedVal : !document.body.classList.contains('high-contrast');
+      if (checkbox) checkbox.checked = isChecked;
+      if (isChecked) {
+        document.body.classList.add('high-contrast');
+      } else {
+        document.body.classList.remove('high-contrast');
+      }
+      localStorage.setItem('s2k_high_contrast', isChecked ? 'true' : 'false');
+    }
+
+    // Restore saved customization preferences
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedFont = localStorage.getItem('s2k_heading_font');
+      if (savedFont) {
+        document.documentElement.style.setProperty('--font-heading', savedFont);
+        const fontPicker = document.getElementById('drawer-font-picker');
+        if (fontPicker) fontPicker.value = savedFont;
+      }
+
+      const savedPaper = localStorage.getItem('s2k_paper_texture');
+      if (savedPaper) {
+        changePaperTexture(savedPaper);
+        const paperPicker = document.getElementById('drawer-paper-picker');
+        if (paperPicker) paperPicker.value = savedPaper;
+      }
+
+      const savedHighlighter = localStorage.getItem('s2k_highlighter_color');
+      if (savedHighlighter) {
+        changeHighlighterColor(savedHighlighter);
+        const washPicker = document.getElementById('drawer-wash-picker');
+        if (washPicker) washPicker.value = savedHighlighter;
+      }
+
+      const savedContrast = localStorage.getItem('s2k_high_contrast');
+      if (savedContrast === 'true') {
+        toggleHighContrast(true);
+      }
+    });
+
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+
+    const slideNumEl = document.getElementById('slide-num');
+    const progressBar = document.getElementById('progress-bar');
+
+    // BroadcastChannel for cross-window real-time presenter synchronization
+    let syncChannel;
+    try {
+      syncChannel = new BroadcastChannel('s2k_presentation_sync');
+      syncChannel.onmessage = (event) => {
+        if (event.data && typeof event.data.slideIndex === 'number') {
+          updateSlide(event.data.slideIndex, false);
+        }
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel not supported:', e);
+    }
+
+    function broadcastSlideChange(index) {
+      if (syncChannel) {
+        const activeSlideEl = slides[index];
+        syncChannel.postMessage({
+          slideIndex: index,
+          speaker: activeSlideEl.getAttribute('data-speaker') || 'Speaker',
+          notes: activeSlideEl.getAttribute('data-notes') || ''
+        });
+      }
+    }
+
+    function updateSlide(index, shouldBroadcast = true) {
+      if (index < 0) index = 0;
+      if (index >= totalSlides) index = totalSlides - 1;
+
+      slides.forEach((s, idx) => {
+        if (idx === index) {
+          s.classList.add('active');
+        } else {
+          s.classList.remove('active');
+        }
+      });
+
+      currentSlide = index;
+      
+      const formattedCur = String(currentSlide + 1).padStart(2, '0');
+      const formattedTot = String(totalSlides).padStart(2, '0');
+      slideNumEl.textContent = `${formattedCur} / ${formattedTot}`;
+
+      const progressPercent = ((currentSlide + 1) / totalSlides) * 100;
+      progressBar.style.width = `${progressPercent}%`;
+
+      if (shouldBroadcast) {
+        broadcastSlideChange(currentSlide);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        updateSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        updateSlide(currentSlide - 1);
+      }
+    }
+
+    function toggleFullscreen() {
+      const stage = document.getElementById('presentation-stage');
+      if (!document.fullscreenElement) {
+        stage.requestFullscreen().catch(err => {
+          console.error(`Error attempting fullscreen: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Toggle Secret Customization Drawer via Alt + H
+      if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        toggleSecretDrawer();
+        return;
+      }
+
+      // Close Secret Drawer on Escape
+      if (secretDrawer && secretDrawer.classList.contains('open') && e.key === 'Escape') {
+        toggleSecretDrawer();
+        return;
+      }
+
+      // Handle keys when Lightbox Modal is open
+      if (document.getElementById('lightbox-modal').classList.contains('active')) {
+        if (e.altKey && (e.key === 'g' || e.key === 'G' || e.code === 'KeyG')) {
+          e.preventDefault();
+          toggleGifPlayerBar();
+          return;
+        }
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          return; // Spacebar is disabled from pausing or changing slides in popup
+        }
+        if (e.key === 'Escape') {
+          closeLightbox();
+          return;
+        }
+        return; // Don't allow other slide navigation while lightbox is active
+      }
+
+      switch(e.key) {
+        case 'ArrowRight':
+        case ' ':
+        case 'PageDown':
+          e.preventDefault();
+          nextSlide();
+          break;
+        case 'ArrowLeft':
+        case 'PageUp':
+          e.preventDefault();
+          prevSlide();
+          break;
+        case 'Home':
+          e.preventDefault();
+          updateSlide(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          updateSlide(totalSlides - 1);
+          break;
+        case 'f':
+          case 'F':
+          toggleFullscreen();
+          break;
+        case 'p':
+        case 'P':
+          window.open('presenter.html', '_blank', 'width=1100,height=700');
+          break;
+      }
+    });
+
+    /* ========================================================
+       FULL VIDEO PLAYER CONTROLLER FOR GIFS
+       ======================================================== */
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCanvas = document.getElementById('lightbox-canvas');
+    const lightboxStatus = document.getElementById('lightbox-status');
+    const gifPlayerBar = document.getElementById('gif-player-bar');
+    const playerSeek = document.getElementById('player-seek');
+    const playerTime = document.getElementById('player-time');
+    const playPauseIcon = document.getElementById('play-pause-icon');
+
+    let currentGifSrc = '';
+    let currentGifFolder = null;
+    let isGifPaused = false;
+    let isScrubbing = false;
+    let isFrameMode = false;
+    let currentFrameIdx = 0;
+    let gifDurationSec = 8;
+    let gifCurrentSec = 0;
+    let gifTimerInterval = null;
+    let currentSpeed = 1.0;
+    const preloadedFrames = [];
+
+    function preloadFramesFor(folder) {
+      preloadedFrames.length = 0;
+      if (!folder) return;
+      for (let i = 0; i < 50; i++) {
+        const img = new Image();
+        img.src = `assets/frames/${folder}/frame_${String(i).padStart(2, '0')}.jpg`;
+        preloadedFrames.push(img);
+      }
+    }
+
+    function getKeyframeSrc(folder, idx) {
+      const clamped = Math.min(49, Math.max(0, idx));
+      if (preloadedFrames[clamped] && preloadedFrames[clamped].src) {
+        return preloadedFrames[clamped].src;
+      }
+      return `assets/frames/${folder}/frame_${String(clamped).padStart(2, '0')}.jpg`;
+    }
+
+    function showKeyframe(idx) {
+      if (!currentGifFolder) return;
+      currentFrameIdx = Math.min(49, Math.max(0, idx));
+      lightboxImg.src = getKeyframeSrc(currentGifFolder, currentFrameIdx);
+    }
+
+    function openLightbox(mediaSrc) {
+      currentGifSrc = mediaSrc;
+      isGifPaused = false;
+      isScrubbing = false;
+      isFrameMode = false;
+      currentFrameIdx = 0;
+      gifCurrentSec = 0;
+      playerSeek.value = 0;
+      setSpeed(1.0);
+
+      // Detect GIF folder and set accurate duration
+      if (mediaSrc.includes('sandbox')) {
+        currentGifFolder = 'sandbox';
+        gifDurationSec = 10;
+      } else if (mediaSrc.includes('compile')) {
+        currentGifFolder = 'compile';
+        gifDurationSec = 8;
+      } else if (mediaSrc.includes('canvas')) {
+        currentGifFolder = 'canvas';
+        gifDurationSec = 7;
+      } else {
+        currentGifFolder = null;
+        gifDurationSec = 6;
+      }
+
+      // Player bar is hidden by default; revealed only via Alt + G
+      gifPlayerBar.classList.remove('active');
+      gifPlayerBar.style.display = 'none';
+
+      if (currentGifFolder) {
+        preloadFramesFor(currentGifFolder);
+      }
+
+      lightboxImg.src = mediaSrc;
+      lightboxImg.style.display = 'block';
+      lightboxCanvas.style.display = 'none';
+
+      lightboxStatus.textContent = '▶ Playing';
+      lightboxStatus.className = 'lightbox-status-pill';
+      playPauseIcon.textContent = '⏸ Pause';
+
+      renderTimeDisplay(0, gifDurationSec);
+      startPlaybackLoop();
+
+      lightboxModal.classList.add('active');
+    }
+
+    function toggleGifPlayerBar() {
+      if (!currentGifFolder) return;
+      const isVisible = gifPlayerBar.classList.contains('active') && gifPlayerBar.style.display === 'flex';
+      if (!isVisible) {
+        gifPlayerBar.classList.add('active');
+        gifPlayerBar.style.display = 'flex';
+      } else {
+        gifPlayerBar.classList.remove('active');
+        gifPlayerBar.style.display = 'none';
+      }
+    }
+
+    function closeLightbox() {
+      stopProgressTimer();
+      isGifPaused = false;
+      isScrubbing = false;
+      isFrameMode = false;
+      gifPlayerBar.classList.remove('active');
+      gifPlayerBar.style.display = 'none';
+      lightboxModal.classList.remove('active');
+      lightboxImg.src = '';
+    }
+
+    function onLightboxBackdropClick(event) {
+      if (event.target === lightboxModal) {
+        closeLightbox();
+      }
+    }
+
+    function togglePlayPause() {
+      if (isGifPaused) {
+        resumePlayback();
+      } else {
+        pausePlayback();
+      }
+    }
+
+    function pausePlayback() {
+      isGifPaused = true;
+      stopProgressTimer();
+
+      // Show exact frozen keyframe for current progress
+      if (currentGifFolder) {
+        const frameIdx = Math.min(49, Math.max(0, Math.floor((gifCurrentSec / gifDurationSec) * 50)));
+        showKeyframe(frameIdx);
+      }
+
+      lightboxStatus.textContent = '⏸ Paused';
+      lightboxStatus.className = 'lightbox-status-pill paused';
+      playPauseIcon.textContent = '▶ Play';
+    }
+
+    function resumePlayback() {
+      isGifPaused = false;
+      lightboxStatus.textContent = '▶ Playing';
+      lightboxStatus.className = 'lightbox-status-pill';
+      playPauseIcon.textContent = '⏸ Pause';
+
+      startPlaybackLoop();
+    }
+
+    function restartGif() {
+      stopProgressTimer();
+      isGifPaused = false;
+      isScrubbing = false;
+      isFrameMode = false;
+      currentFrameIdx = 0;
+      gifCurrentSec = 0;
+      playerSeek.value = 0;
+      renderTimeDisplay(0, gifDurationSec);
+
+      lightboxStatus.textContent = '▶ Playing';
+      lightboxStatus.className = 'lightbox-status-pill';
+      playPauseIcon.textContent = '⏸ Pause';
+
+      // Reload gif with cache buster to restart from frame 0
+      lightboxImg.src = currentGifSrc.split('?')[0] + '?t=' + Date.now();
+      startPlaybackLoop();
+    }
+
+    function startPlaybackLoop() {
+      stopProgressTimer();
+      if (!currentGifFolder || isGifPaused) return;
+
+      if (!isFrameMode) {
+        // Mode 1: Native smooth animated GIF playback
+        gifTimerInterval = setInterval(() => {
+          if (isScrubbing || isGifPaused) return;
+          gifCurrentSec += 0.1 * currentSpeed;
+          if (gifCurrentSec >= gifDurationSec) {
+            gifCurrentSec = 0;
+          }
+          renderTimeDisplay(gifCurrentSec, gifDurationSec);
+          if (!isScrubbing) {
+            playerSeek.value = (gifCurrentSec / gifDurationSec) * 100;
+          }
+        }, 100);
+      } else {
+        // Mode 2: Step through keyframes from seek position
+        const frameIntervalMs = Math.max(30, (gifDurationSec * 1000 / 50) / currentSpeed);
+        gifTimerInterval = setInterval(() => {
+          if (isScrubbing || isGifPaused) return;
+          currentFrameIdx++;
+          if (currentFrameIdx >= 50) {
+            // Looped back to start: seamlessly transition back to smooth GIF
+            currentFrameIdx = 0;
+            gifCurrentSec = 0;
+            isFrameMode = false;
+            lightboxImg.src = currentGifSrc.split('?')[0] + '?t=' + Date.now();
+            renderTimeDisplay(0, gifDurationSec);
+            if (!isScrubbing) playerSeek.value = 0;
+            startPlaybackLoop();
+            return;
+          }
+          gifCurrentSec = (currentFrameIdx / 50) * gifDurationSec;
+          showKeyframe(currentFrameIdx);
+          renderTimeDisplay(gifCurrentSec, gifDurationSec);
+          if (!isScrubbing) {
+            playerSeek.value = (currentFrameIdx / 50) * 100;
+          }
+        }, frameIntervalMs);
+      }
+    }
+
+    function stopProgressTimer() {
+      if (gifTimerInterval) {
+        clearInterval(gifTimerInterval);
+        gifTimerInterval = null;
+      }
+    }
+
+    function renderTimeDisplay(curSec, totSec) {
+      const curFormatted = String(Math.floor(curSec)).padStart(2, '0');
+      const totFormatted = String(Math.floor(totSec)).padStart(2, '0');
+      playerTime.textContent = `00:${curFormatted} / 00:${totFormatted}`;
+    }
+
+    function handleScrub(val) {
+      const percent = parseFloat(val);
+      gifCurrentSec = (percent / 100) * gifDurationSec;
+      renderTimeDisplay(gifCurrentSec, gifDurationSec);
+
+      if (currentGifFolder) {
+        const frameIdx = Math.min(49, Math.max(0, Math.floor((percent / 100) * 50)));
+        currentFrameIdx = frameIdx;
+        showKeyframe(frameIdx);
+        isFrameMode = true; // User sought to a specific point
+      }
+    }
+
+    function onScrubInput(val) {
+      isScrubbing = true;
+      handleScrub(val);
+    }
+
+    function onScrubChange(val) {
+      handleScrub(val);
+      isScrubbing = false;
+      if (!isGifPaused) {
+        startPlaybackLoop();
+      }
+    }
+
+    function setSpeed(speed) {
+      currentSpeed = speed;
+      ['05', '1', '15'].forEach(s => {
+        const btn = document.getElementById('btn-speed-' + s);
+        if (btn) btn.classList.remove('active');
+      });
+      if (speed === 0.5) {
+        const b = document.getElementById('btn-speed-05');
+        if (b) b.classList.add('active');
+      } else if (speed === 1.0) {
+        const b = document.getElementById('btn-speed-1');
+        if (b) b.classList.add('active');
+      } else if (speed === 1.5) {
+        const b = document.getElementById('btn-speed-15');
+        if (b) b.classList.add('active');
+      }
+
+      if (!isGifPaused) {
+        startPlaybackLoop();
+      }
+    }
+
+    // Initialize first slide
+    updateSlide(0);
+  </script>
+</body>
+</html>

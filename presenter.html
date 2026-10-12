@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S2U Presenter Console — Speaker Notes & Remote Control</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    @font-face {
+      font-family: "Drawably Pen";
+      src: url("public/fonts/DrawablyPen.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-yellow: #fde047;
+      --accent-pink: #f472b6;
+      --font-heading: "Drawably Pen", "Architects Daughter", "Caveat", cursive;
+      --font-body: "Inter", sans-serif;
+      --font-code: "JetBrains Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      color: var(--accent-yellow);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-family: var(--font-code);
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    /* Main Console Grid */
+    .console-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      flex: 1;
+    }
+
+    /* Left: Big Speaker Notes & Script */
+    .notes-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .notes-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .speaker-indicator {
+      font-family: var(--font-heading);
+      font-size: 2.2rem;
+      color: var(--accent-pink);
+    }
+
+    .slide-indicator {
+      font-family: var(--font-code);
+      font-size: 1.1rem;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      padding: 4px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .notes-body {
+      flex: 1;
+      font-size: 1.2rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      margin-bottom: 24px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .notes-key-sentence {
+      background: rgba(253, 224, 71, 0.12);
+      border-left: 4px solid #fde047;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 1.25rem;
+      color: #fef08a;
+      margin-bottom: 16px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .notes-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .notes-bullets li {
+      position: relative;
+      padding-left: 26px;
+      font-size: 1.15rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    .notes-bullets li::before {
+      content: "✦";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #38bdf8;
+      font-size: 1.1rem;
+    }
+
+    .notes-bullets li strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* Navigation Bar */
+    .nav-controls {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .btn-nav {
+      flex: 1;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      font-family: var(--font-body);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-prev {
+      background: #334155;
+      color: #f8fafc;
+    }
+
+    .btn-prev:hover { background: #475569; }
+
+    .btn-next {
+      background: var(--accent-yellow);
+      color: #0f172a;
+    }
+
+    .btn-next:hover { background: #fef08a; transform: translateY(-1px); }
+
+    /* Right Sidebar: Stopwatch & Jump List */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .widget-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .widget-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* Timer Widget */
+    .timer-display {
+      font-family: var(--font-code);
+      font-size: 3rem;
+      font-weight: 700;
+      color: #4ade80;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    .timer-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-timer {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-timer:hover { background: #1e293b; }
+
+    /* Slide Jump List */
+    .slide-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    .slide-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #0f172a;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.15s;
+    }
+
+    .slide-item:hover {
+      border-color: var(--border);
+      background: #1e293b;
+    }
+
+    .slide-item.active {
+      border-color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-blue);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <img src="assets/logo.png" alt="Logo" style="height: 36px;">
+      <span class="brand-title">S2U Presenter Console</span>
+    </div>
+    <div class="status-badge" id="sync-status">
+      ● Connected to Projector Window
+    </div>
+  </header>
+
+  <div class="console-layout">
+    <!-- LEFT: SPEAKER SCRIPT / NOTES -->
+    <div class="notes-container">
+      <div>
+        <div class="notes-header">
+          <div class="speaker-indicator" id="cur-speaker">Speaker: Atharv</div>
+          <div class="slide-indicator" id="cur-slide-indicator">Slide 01 of 11</div>
+        </div>
+        <div class="notes-body" id="cur-notes">
+          Loading slide notes...
+        </div>
+      </div>
+
+      <!-- BOTTOM NAVIGATION -->
+      <div class="nav-controls">
+        <button class="btn-nav btn-prev" onclick="sendPrev()">◀ Previous Slide (Left)</button>
+        <button class="btn-nav btn-next" onclick="sendNext()">Next Slide (Right / Space) ▶</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: TIMER & QUICK JUMP -->
+    <div class="sidebar">
+      <!-- Pitch Stopwatch -->
+      <div class="widget-card">
+        <div class="widget-title">Pitch Stopwatch (Target: 7-8 Mins)</div>
+        <div class="timer-display" id="timer-text">00:00</div>
+        <div class="timer-buttons">
+          <button class="btn-timer" onclick="startTimer()">Start</button>
+          <button class="btn-timer" onclick="pauseTimer()">Pause</button>
+          <button class="btn-timer" onclick="resetTimer()">Reset</button>
+        </div>
+      </div>
+
+      <!-- Slide Quick Jumper -->
+      <div class="widget-card" style="flex:1;">
+        <div class="widget-title">Jump to Slide</div>
+        <div class="slide-list" id="jump-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const slideData = [
+      {
+        num: 1,
+        title: "Title & Hook",
+        speaker: "Atharv",
+        notes: `
+          <div class="notes-key-sentence">
+            "Every great product begins scribbled on a coffee napkin, notebook margin, or whiteboard. S2U compiles those tactile doodles into living Web Components using Google Gemma 4."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Introduction:</strong> Atharv & Purvanshi representing Sketch2Kernel (S2U).</li>
+            <li><strong>Hackathon Focus:</strong> Built specifically for Track 1 — Best Use of Gemma 4.</li>
+            <li><strong>Proof of Work:</strong> 90 commits, 65 merged PRs, 53 automated tests passing.</li>
+            <li><strong>Core Philosophy:</strong> "Napkin to UI" — sketch tactile wireframes, compile directly.</li>
+          </ul>
+        `
+      },
+      {
+        num: 2,
+        title: "The Problem (The Ideation Gap)",
+        speaker: "Atharv",
+        notes: `
+          <div class="notes-key-sentence">
+            "When brainstorming, you don't think in 12-column CSS grids or Tailwind classes—you sketch shapes. Describing 2D layouts in text prompts is painful, ambiguous, and slow."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Translation Tax:</strong> 70% of early prototype time is wasted writing boilerplate CSS.</li>
+            <li><strong>Text Prompt Trap:</strong> Describing 2D spatial layouts with words creates hallucinations.</li>
+            <li><strong>Static Dead-Ends:</strong> Screenshot-to-code toys output frozen, un-editable HTML blocks.</li>
+            <li><strong>Our Mission:</strong> Make the digital drawing board itself the compiler!</li>
+          </ul>
+        `
+      },
+      {
+        num: 3,
+        title: "The S2U Paradigm",
+        speaker: "Atharv",
+        notes: `
+          <div class="notes-key-sentence">
+            "Instead of another cold form with dropdowns, we built an authentic digital sketchbook where sketching IS coding."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Rough.js Vector Pen:</strong> Dynamic ballpoint blue and carbon ink with tactile pen physics.</li>
+            <li><strong>UI Stamps:</strong> Stamp buttons, inputs, cards, tables with 8-point resize and in-place renaming.</li>
+            <li><strong>Precision Eradicator:</strong> Deletes only the touched stroke without wiping crossing lines.</li>
+            <li><strong>Napkin Photo Ingestion:</strong> Upload physical paper photos directly onto the canvas.</li>
+            <li><strong>Curated Presets:</strong> 1-click loading for Auth cards, Pricing tables, and Hero sections.</li>
+          </ul>
+        `
+      },
+      {
+        num: 4,
+        title: "Why Google Gemma 4?",
+        speaker: "Atharv",
+        notes: `
+          <div class="notes-key-sentence">
+            "UI comprehension requires true spatial vision. Gemma 4 understands that a box with a top line is a modal, and an encircled X is a close button."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Primary Engine:</strong> <code>gemma-4-31b-it</code> for deep semantic component understanding.</li>
+            <li><strong>Zero Downtime Failover:</strong> Automatic fallback to <code>gemma-4-26b-a4b-it</code> if quota spikes occur.</li>
+            <li><strong>Open-Weights Ecosystem:</strong> Zero vendor lock-in; ready for local Ollama/vLLM & Agent Skills.</li>
+            <li><strong>Handoff to Purvanshi:</strong> "Now Purvanshi will break down how our compilation architecture works under the hood."</li>
+          </ul>
+        `
+      },
+      {
+        num: 5,
+        title: "Neural Compilation Pipeline",
+        speaker: "Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "When you hit compile, we don't just dump a screenshot to an API—we run a deterministic, multi-stage pipeline."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Dual Serialization:</strong> Exports Base64 visual image + JSON spatial coordinate hierarchy.</li>
+            <li><strong>Sliding Limiter:</strong> In-memory 29 RPM queue in <code>lib/gemini-rate-limiter.ts</code> halts 429 lockouts.</li>
+            <li><strong>Gemma 4 Multimodal:</strong> Synthesizes pixels and bounds into semantic HTML5 markup.</li>
+            <li><strong>Resilient Extractor:</strong> Self-heals broken JSON quotes, markdown code fences, and diff patches.</li>
+            <li><strong>DOMPurify Sanitizer:</strong> Proactively strips scripts, eval, and malicious event handlers.</li>
+            <li><strong>Live Sandbox:</strong> Boots isolated component with real-time 2-way props binding.</li>
+          </ul>
+        `
+      },
+      {
+        num: 6,
+        title: "Dual-Signal Spatial Perception",
+        speaker: "Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "Signal A is the Visual Eye; Signal B is the Blueprint. Gemma 4 fuses both to eliminate layout hallucinations."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Signal A (Pixels):</strong> Captures handwriting, rough arrows, circular badges, and layout relationships.</li>
+            <li><strong>Signal B (JSON Blueprint):</strong> Mathematical bounding boxes and component roles (cards, buttons, inputs).</li>
+            <li><strong>The Fusion Win:</strong> Gemma knows exact pixel coordinates AND human visual intent—zero layout guessing!</li>
+          </ul>
+        `
+      },
+      {
+        num: 7,
+        title: "Live Sandbox & Reactive Props",
+        speaker: "Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "Generating static code is only half the battle. Making it interactive in milliseconds without re-calling the AI model is the real win."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Automated Prop Discovery:</strong> Detects editable variables (<code>title</code>, <code>buttonText</code>, <code>variant</code>) from markup.</li>
+            <li><strong>Sub-10ms Live Binding:</strong> Edit values in the props table ➔ live iframe updates in real time with zero token spend!</li>
+            <li><strong>Multi-Device Viewport:</strong> 1-click responsive testing across Desktop (100%), Tablet, and Mobile (375px).</li>
+            <li><strong>One-Click Code Export:</strong> Clean, copyable semantic HTML5 + CSS markup.</li>
+          </ul>
+        `
+      },
+      {
+        num: 8,
+        title: "Resilience & Security",
+        speaker: "Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "Executing AI-generated code in a browser demands defense-in-depth and production-grade reliability."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>29 RPM Sliding Queue:</strong> Delays requests approaching quota limits, preventing ugly 429 errors during live judging.</li>
+            <li><strong>Self-Healing Output:</strong> Multi-format extractor recovers valid HTML from broken markdown or git diffs.</li>
+            <li><strong>Iframe Hardening:</strong> Restricted <code>sandbox="allow-scripts allow-modals"</code> prevents cookie theft or window hijacking.</li>
+          </ul>
+        `
+      },
+      {
+        num: 9,
+        title: "Open-Source Rigor (How We Built It)",
+        speaker: "Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "Hacktoberfest judges how you build, not just what you demo. We built 100% in public with professional team discipline."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>The Metrics:</strong> 90 commits, 65 closed PRs, 53 automated unit tests passing in CI.</li>
+            <li><strong>Zero Direct Pushes:</strong> 100% feature-branch workflow (<code>feat/</code>, <code>fix/</code>, <code>docs/</code>).</li>
+            <li><strong>Cross-Peer Reviews:</strong> Every single PR was reviewed, commented on, and approved between Atharv and Purvanshi.</li>
+            <li><strong>Agent Skill Standard:</strong> Packaged as an autonomous skill in <code>skills/sketch-compiler/SKILL.md</code>.</li>
+            <li><strong>Handoff to Atharv for Demo:</strong> "Now Atharv will take over to demonstrate S2U live on stage!"</li>
+          </ul>
+        `
+      },
+      {
+        num: 10,
+        title: "Live Stage Demonstration",
+        speaker: "Atharv",
+        notes: `
+          <div class="notes-key-sentence">
+            "Now let's see it live on stage! Opening our production app at sketch2k.vercel.app."
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Step 1:</strong> Switch to browser tab at <code>sketch2k.vercel.app</code> and open the Playground.</li>
+            <li><strong>Step 2:</strong> Draw on canvas or load a Napkin Wireframe Preset (e.g. Pricing or Auth Card).</li>
+            <li><strong>Step 3:</strong> Hit <strong>"Compile with Gemma 4"</strong> and watch the multimodal pipeline process it.</li>
+            <li><strong>Step 4:</strong> Show the sandboxed component rendered in the iframe.</li>
+            <li><strong>Step 5:</strong> Edit a title/button label in the Props Table live (highlight: sub-10ms update with 0 tokens!).</li>
+            <li><strong>Step 6:</strong> Switch viewport to Mobile (375px) and click Copy Code!</li>
+          </ul>
+        `
+      },
+      {
+        num: 11,
+        title: "Roadmap Ahead & Conclusion",
+        speaker: "Atharv & Purvanshi",
+        notes: `
+          <div class="notes-key-sentence">
+            "Sketch2Kernel bridges human tactile creativity and modern software engineering. We're ready for your questions!"
+          </div>
+          <ul class="notes-bullets">
+            <li><strong>Phase 2:</strong> VS Code & Cursor extension to compile whiteboard photos directly inside IDEs.</li>
+            <li><strong>Phase 3:</strong> Multi-framework export (React JSX, Tailwind, Flutter) + client-side Gemma inference via WebGPU.</li>
+            <li><strong>Repository:</strong> <code>github.com/Pierce05/sketch-to-kernel</code> (MIT License).</li>
+            <li><strong>Thank You:</strong> Thank the judges, mentors, and Hacktoberfest team, and open for Q&A!</li>
+          </ul>
+        `
+      }
+    ];
+
+    let currentSlideIndex = 0;
+    const syncChannel = new BroadcastChannel('s2k_presentation_sync');
+
+    syncChannel.onmessage = (event) => {
+      if (event.data && typeof event.data.slideIndex === 'number') {
+        currentSlideIndex = event.data.slideIndex;
+        renderConsole();
+      }
+    };
+
+    function sendSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= slideData.length) index = slideData.length - 1;
+      currentSlideIndex = index;
+      syncChannel.postMessage({ slideIndex: currentSlideIndex });
+      renderConsole();
+    }
+
+    function sendNext() {
+      sendSlide(currentSlideIndex + 1);
+    }
+
+    function sendPrev() {
+      sendSlide(currentSlideIndex - 1);
+    }
+
+    function renderConsole() {
+      const data = slideData[currentSlideIndex];
+      document.getElementById('cur-speaker').textContent = `Speaker: ${data.speaker}`;
+      document.getElementById('cur-slide-indicator').textContent = `Slide ${String(data.num).padStart(2, '0')} of ${slideData.length}`;
+      document.getElementById('cur-notes').innerHTML = `<p>${data.notes}</p>`;
+
+      // Render Jump list
+      const jumpList = document.getElementById('jump-list');
+      jumpList.innerHTML = '';
+      slideData.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = `slide-item ${idx === currentSlideIndex ? 'active' : ''}`;
+        item.innerHTML = `<span>${s.num}. ${s.title}</span><span style="font-size:0.75rem; color:#94a3b8;">${s.speaker}</span>`;
+        item.onclick = () => sendSlide(idx);
+        jumpList.appendChild(item);
+      });
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        sendNext();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        sendPrev();
+      }
+    });
+
+    // Stopwatch logic
+    let timerSeconds = 0;
+    let timerInterval = null;
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        document.getElementById('timer-text').textContent = formatTime(timerSeconds);
+        if (timerSeconds >= 480) { // 8 mins warning
+          document.getElementById('timer-text').style.color = '#ef4444';
+        } else if (timerSeconds >= 360) { // 6 mins warning
+          document.getElementById('timer-text').style.color = '#f59e0b';
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timerSeconds = 0;
+      document.getElementById('timer-text').textContent = '00:00';
+      document.getElementById('timer-text').style.color = '#4ade80';
+    }
+
+    // Initialize
+    renderConsole();
+  </script>
+</body>
+</html>
